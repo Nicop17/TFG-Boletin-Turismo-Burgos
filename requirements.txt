@@ -1,0 +1,25 @@
+# Comando para instalar: pip install -r requirements.txt
+
+# Para extracción de datos y preprocesado
+
+deep_translator==1.11.4
+langdetect==1.0.9
+apify_client==1.10.0
+numpy==2.0.2
+pandas==2.2.2
+gender-guesser==0.4.0
+httpx==0.28.1
+requests==2.32.4
+python-dotenv==1.1.1
+
+# Para aprendizaje automático, no necesarias si se ejecuta el modelo en Google Colab ya que el notebook ya las incluye
+
+#tensorflow==2.18.0
+#keras==3.8.0
+#scikit-learn==1.6.1
+#pysentimiento==0.7.3
+#emoji==2.14.1
+#pyodbc==5.2.0
+#matplotlib==3.10.0
+#seaborn==0.13.2
+#transformers==4.53.0

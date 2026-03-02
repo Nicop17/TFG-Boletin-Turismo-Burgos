@@ -1,0 +1,221 @@
+\capitulo{4}{Técnicas y herramientas}
+
+\section{Control de versiones}
+
+Git es un sistema de control de versiones que permite llevar un registro
+de los cambios realizados en un proyecto durante su desarrollo. 
+Permite trabajar de forma colaborativa, visualizar fácilmente el historial de cambios y revertir a versiones anteriores si es necesario.
+Además, me permite trabajar con varios ordenadores y mantener el proyecto sincronizado entre ellos.
+\imagen{git}{Logotipo de Git}{0.15}
+
+\section{Alojamiento de código}
+
+GitHub es una plataforma de alojamiento de código que utiliza Git como sistema de control de versiones.
+Permite almacenar el código fuente de un proyecto, colaborar con otros desarrolladores y gestionar el historial de cambios.
+Además, GitHub ofrece características como la gestión de incidencias, revisiones de código y documentación del proyecto.
+Adicionalmente permite la creacion de tableros de proyectos para organizar tareas y hacer seguimiento del progreso del proyecto.
+Por último y como se mencionó anteriormente, permite la integración con Visual Studio Code para gestionar el repositorio directamente desde el IDE.
+\imagen{github}{Logotipo de GitHub}{0.2}
+
+\section{Entornos de desarrollo integrado (IDE)}
+
+\subsection{Visual Studio Code}
+
+Principalmente se ha utilizado Visual Studio Code como IDE para la creación de los scripts.
+Visual Studio Code permite la ejecución de dichos scripts, así como su depuración.
+Por último y como se mencionó anteriormente, permite integrar una cuenta de GitHub para gestionar el repositorio del proyecto directamente desde el IDE.
+Además, se puede instalar varias extensiones de gran ayuda para el desarrollo del proyecto.
+\imagen{vsc}{Logotipo de VisualStudioCode}{0.15}
+
+\subsubsection{Extensiones}
+
+\begin{itemize}
+    
+    \item \textbf{Python}: Proporciona soporte para el lenguaje Python, incluyendo resaltado de sintaxis, autocompletado y depuración.
+    \item \textbf{LaTeX Workshop}: Permite trabajar con LaTeX, facilitando la edición y compilación de documentos LaTeX.
+    \item \textbf{GitHub}: Permite integrar una cuenta de GitHub para gestionar el repositorio del proyecto directamente desde el IDE.
+    \item \textbf{CSVLint}: Permite validar y formatear archivos CSV, y permite ver visualmente los diferentes campos del fichero.
+
+\end{itemize}
+
+\subsection{Google Colab}
+Adicionalmente, se ha utilizado Google Colab para el desarrollo y ejecución e la red neuronal.
+Google Colab es un entorno de desarrollo basado en la nube y accesible con una cuenta de Google que permite ejecutar código Python en notebooks Jupyter.
+La principal ventaja de utilizar Google Colab es que de forma gratuita permite utilizar GPUs para acelerar el entrenamiento de modelos de aprendizaje automático reduciendo el tiepmo de ejecución.
+\imagen{colab}{Logotipo de Google Colab}{0.25}
+
+\section {Lenguajes de programación}
+
+\subsection{Python}
+
+Python es un lenguaje de programación de alto nivel, interpretado y multipropósito.
+Es comunmente utilizado en el ámbito del análisis de datos, la inteligencia artificial y el desarrollo web.
+En este proyecto, se ha utilizado Python para desarrollar los scripts de extracción de datos y la red neuronal para la clasificación de los puntos de interés.
+\imagen{python}{Logotipo de Python}{0.2}
+
+\subsection{LaTeX}
+
+LaTeX es un sistema de preparación de documentos que permite crear documentos de alta calidad tipográfica, especialmente en el ámbito académico y científico.
+También permite trabajar con LaTeX tras instalar Strawberry, una extensión que facilita la edición y compilación de documentos LaTeX.
+Para la redacción de la memoria del proyecto, se ha utilizado Visual Studio Code con la extensión LaTeX Workshop.
+\imagen{latex}{Logotipo de LaTeX}{0.2}
+
+\subsection{Markdown}
+
+Markdown es un lenguaje de marcado ligero que permite escribir texto con formato de manera sencilla.
+En este proyecto se ha utilizado para la redacción del fichero README.md del repositorio.
+\imagen{md}{Logotipo de Markdown}{0.2}
+
+\subsection{SQL}
+
+Para la gestión de la base de datos se ha usado SQL como lenguaje de consulta.
+Permite almacenar, modificar y extraer información de manera eficiente.
+Adicionalmente, se ha utilizado SSMS como herramienta para diseñar y gestionar la base de datos de manera más amigable.
+\imagen{sql}{Logotipo de SQL}{0.2}
+
+\subsection{Overpass QL}
+Overpass Query Language (Overpass QL) es un lenguaje de consulta utilizado para extraer datos de OpenStreetMap.
+Permite realizar consultas complejas sobre los datos geoespaciales de OSM, filtrando por diferentes criterios como tipo de elemento, ubicación, etiquetas, etc.
+\imagen{overpass}{Logotipo de Overpass Turbo}{0.15}
+
+\subsection{DAX}
+
+DAX (Data Analysis Expressions) es un lenguaje de fórmulas utilizado en Power BI.
+Permite realizar cálculos y consultas sobre los datos importados en Power BI, facilitando la creación de medidas y columnas calculadas.
+\imagen{dax}{Logotipo de DAX}{0.2}
+
+\section{Librerías}
+
+\subsection{Pandas}
+
+Pandas es una biblioteca de Python que permite manipular estructuras de datos como dataframes para tratar con la información.
+Además, ayuda a analizar datos de manera eficiente, facilitando tareas como la limpieza, transformación y visualización de datos.
+
+\subsection{Time}
+
+La libería Time de Python proporciona funciones para trabajar con el tiempo y las fechas.
+Su principal uso y objetivo es medir el tiempo transcurrido durante la ejecución de un programa, lo que permite optimizar el rendimiento.
+
+\subsection{Requests}
+
+Requests es una biblioteca de Python que permite realizar solicitudes de manera sencilla.
+Permite enviar peticiones a servidores web y recibir respuestas.
+Se ha utilizado para realizar peticiones a la API de Google Places.
+
+\subsection{Multiproccessing}
+
+Multiproccessing es una biblioteca de Python que permite la ejecución de tareas en paralelo utilizando múltiples procesos.
+Para el proyecto se ha utilizado Value, una clase de la biblioteca Multiproccessing, que permite compartir datos entre procesos.
+
+\subsection{JSON}
+
+JSON es una biblioteca de Python que permite trabajar con datos en formato JSON (JavaScript Object Notation).
+Para el proyecto se ha utilizado para almacenar los datos extraídos Overpass Turbo y extraer los placeIds de la API de Google Places.
+
+\subsection{CSV}
+
+CSV es una biblioteca de Python que permite trabajar con archivos CSV (Comma-Separated Values).
+CSV es un formato de archivo utilizado para almacenar información. Cada línea del archivo representa una fila y los campo está separado por comas.
+En este proyecto se ha utilizado para almacenar los placeIds de los puntos de interés extraídos de la API de Google Places.
+
+\subsection{Concurrent.futures}
+
+Concurrent.futures es una biblioteca de Python que permite ejecutar tareas de forma concurrente utilizando hilos o procesos.
+Permite paralelizar la ejecución de tareas, lo que puede mejorar el rendimiento en operaciones que requieren mucho tiempo de procesamiento como la extracción de los placeIds de los puntos de interés a partir de la API de Google Places.
+
+\subsection{Apify\_client}
+
+Apify\_client es una biblioteca que permite la creación de un agente de Apify, una plataforma que permite la extraccuón de reviews a partir de la URL o de un placeId de Google Maps. 
+Permite interactuar con la API de Apify para realizar tareas como la ejecución de agentes, la gestión de datos y la monitorización de tareas.
+
+\subsection{dotenv}
+
+Dotenv es una biblioteca de Python que permite cargar variables de
+entorno desde un archivo .env en el proyecto. Se utiliza para gestionar
+los datos sensibles como las claves de las APIs de Google Places y Apify,
+evitando que se expongan directamente en el código fuente.
+
+\subsection{Gender\_guesser}
+
+Gender\_guesser es una biblioteca de Python que permite predecir el género de una persona a partir de su nombre. Necesita recibir un nombre
+como parámetro y devuelve el género asociado a ese nombre.
+
+\subsection{TensorFlow}
+
+TensorFlow es una biblioteca de código abierto que permite la creación
+y entrenamiento de modelos de aprendizaje automático. En este proyecto se
+ha utilizado para crear y entrenar la red neuronal que clasifica los puntos de
+interés en función de su tipo.\cite{tensorflowAbout}
+
+\subsection{Sklearn}
+
+Sklearn es una biblioteca de Python que proporciona herramientas para el aprendizaje automático.
+Principalmente se ha utilizado para crear los conjuntos de entrenamiento y prueba, así como para obtener métricas interesantes en el entrenamiento del modelo como el F1-score.
+
+\subsection{pyodbc}
+
+Pyodbc es una biblioteca de Python que permite conectarse a bases de datos utilizando ODBC (Open Database Connectivity).
+En este proyecto se ha utilizado para conectarse a la base de datos de Azure SQL Database y realizar consultas sobre ella desde Python.
+Es necesario instalar un driver ODBC para SQL Server, como el "ODBC Driver 17 for SQL Server" el cual se puede encontrar en la web de Microsoft.
+
+\subsection{pysentimiento}
+
+Pysentimiento es una biblioteca de Python que permite realizar análisis de sentimiento en texto en español.
+A través de esta biblioteca se puede obtener una función de polaridad para un texto que indica si el texto es positivo, negativo o neutral.
+
+\subsection{langdetect}
+
+Langdetect es una biblioteca de Python que permite detectar el idioma de un texto.
+Utiliza un modelo de aprendizaje automático para identificar el idioma del texto y devuelve el código ISO del idioma detectado. 
+Algunos ejemplos de códigos ISO son "es" para español, "en" para inglés o "fr" para francés.
+
+\subsection{deep\_translator}
+
+Deep\_translator es una biblioteca de Python que permite traducir texto entre diferentes idiomas utilizando diferentes servicios de traducción.
+En este proyecto se ha utilizado para traducir los nombres de los puntos de interés a español para el entrenamiento de la red neuronal.
+Previamente se ha utilizado langdetect para detectar el idioma del nombre del punto de interés y así traducirlo al español si es necesario.
+
+\subsection{re}
+
+Re es una biblioteca de Python que permite trabajar con expresiones regulares. 
+Se ha utilizado en el preprocesamiento de las reseñas para eliminar caracteres o secuencias no deseadas.
+
+\section{Base de datos}
+
+Como gestor de la base de datos se ha utilizado Azure SQL Database. Permite almacenar, modificar y extraer información de manera eficiente en la nube a través de Azure.
+Además, se ha utilizado SQL Server Management Studio (SSMS) para realizar consultas sobre la base de datos de forma visual.
+\imagen{ssms}{Logotipo de SSMS}{0.15}
+
+\section{Análisis de datos}
+
+Se ha considerado el uso de PowerBI y Google Data Studio como herramientas para el análisis de datos y la creación de cuadros de mando interactivos.
+Dado que PowerPages permite la integración del dashboard con PowerBI, se ha optado por esta herramienta para la creación del cuadro de mando del proyecto.
+
+PowerBI es una herramienta de análisis de datos que permite crear informes y cuadros de mando interactivos.
+Permite importar datos de diversas fuentes, transformarlos y visualizarlos de manera clara y concisa.
+El hecho de que permita la importación de datos desde una base de datos SQL de Azure facilita la decisión de utilizar esta herramienta para la creación del cuadro de mando del proyecto.
+Además es una herramienta muy fácil e intutitiva de utilizar.
+\imagen{powerbi}{Logotipo de PowerBI}{0.15}
+
+\section{Publicación de resultados}
+
+PowerPages es una plataforma de Microsoft que permite crear sitios web y aplicaciones web de manera rápida y sencilla.
+Además, ofrece la posibilidad de integrar el cuadro de mando creado en PowerBI para que los usuarios puedan ver e interactuar con los datos de manera visual.
+\imagen{powerpages}{Logotipo de PowerPages}{0.15}
+
+\section{Defectos de código}
+
+\subsection{Docker}
+
+Docker es una plataforma que permite crear, desplegar y ejecutar aplicaciones en contenedores. 
+Esto facilita la ejecución de aplicaciones en diferentes entornos o máquinas ya que no es necesario instalar toads las dependencias manualmente.
+En este proyecto se ha utilizado Docker para ejecutar SonarQube, facilitando su instalación y configuración.
+\imagen{docker}{Logotipo de Docker}{0.15}
+
+\subsection{SonarQube}
+
+Para la detección de defectos de código se ha usado SonarQube. 
+SonarQube es una plataforma de código abierto que permite analizar el código fuente
+de un proyecto para detectar errores, fallos de seguridad yO malas prácticas entre otras cosas.
+Gracias a su análisis ha sido posible detectar posibles defectos de seguridad.
+\imagen{sonarqube}{Logotipo de SonarQube}{0.25}

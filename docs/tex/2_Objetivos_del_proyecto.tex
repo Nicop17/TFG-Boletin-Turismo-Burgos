@@ -1,0 +1,52 @@
+\capitulo{2}{Objetivos del proyecto}
+
+Este proyecto tiene como finalidad desarrollar una solución tecnológica que permita analizar la reputación online de distintos destinos turísticos 
+mediante un cuadro de mando desde el que se puedan visualizar los datos obtenidos relativos a las reseñas de forma sencilla y comprensible.
+Para ello, se desarrollará un sistema de análisis de reputación online que permita obtener información relevante sobre la percepción de los usuarios sobre un destino turístico.
+Realizar esta tarea conlleva los siguientes pasos:
+
+\begin{itemize}
+    \item Automatizar la obtención de datos.
+    \item Clasificar e interpretar los datos.
+    \item Sistema de análisis de sentimientos.
+    \item Crear un cuadro de mando.
+    \item Publicar los resultados.
+\end{itemize}
+
+\section {Automatizar la obtención de datos}
+ 
+Para que el sistema de análisis de reputación online sea eficiente y aplicable a múltiples destinos turísticos, es fundamental automatizar el proceso de recopilación de datos.
+Se desarrollará un sistema de extracción de datos automatizado que permita obtener información relevante de distintas fuentes, como reseñas de usuarios, puntuaciones, etc. 
+Estos datos están publicados en Internet de forma altruista por diferentes personas que buscan aconsejar a otros usuarios.
+Esto permitirá que el sistema escale sin intervención manual constante, garantizando una actualización en tiempo real y una mayor precisión en la información analizada.
+
+\section {Clasificar e interpretar los datos}
+Hacer una clasficación e interpretación de los datos obtenidos previamente: recursos, reseñas, etc. El objetivo de este proceso es obtener información relevante.
+Para ello, se clasificarán las reseñas de los usuarios en positivas, negativas o neutras.
+Además, se analizarán las palabras más frecuentes para identificar temas recurrentes en las reseñas. 
+Esta clasificación será clave para el siguiente paso del análisis de sentimientos.
+
+\section {Sistema de análisis de sentimientos}
+El análisis de sentimientos permite interpretar de forma automática la opinión de los usuarios sobre un destino turístico.
+Se desarrollará un sistema de análisis de sentimientos que permita obtener información sobre la percepción de los usuarios.
+Se utilizarán reseñas de usuarios para extraer dicha información sobre los destinos turísticos.
+El proceso ETL (Extract, Transform, Load) es fundamental para preparar las reseñas de usuarios para el análisis de sentimientos.
+Para que el sistema de análisis de sentimientos funcione correctamente, los datos deben estar estructurados, como puntuaciones y palabras clave, que faciliten el análisis. 
+Sin embargo, muchas reseñas son textos no estructurados. 
+En estos casos, el sub-sistema de Text Mining se encarga de procesar y extraer información útil del texto, como palabras clave y sentimientos, utilizando técnicas de procesamiento de lenguaje natural. 
+Esto convierte los datos no organizados en información estructurada que luego se puede analizar con el objetivo de evaluar la percepción de los usuarios sobre los destinos turísticos.
+
+\section {Crear un cuadro de mando}
+Crear un cuadro de mando interactivo destinado al análisis de la reputación online, aplicable a distintos destinos turísticos.
+Este cuadro de mando contendrá información visual y estructurada sobre la percepción de los usuarios sobre dichos destinos turísticos.
+Esta tarea se realizará con PowerBI, una herramienta de análisis de datos que permite crear gráficos e informes visuales.
+PowerBI permite crear cuadros de mando interactivos y visuales para visualizar los datos de forma clara y concisa. 
+Además, permite usar DAX, un lenguaje de fórmulas que permite realizar cálculos para obtener medidas útiles en el análisis de datos.
+
+\section {Publicar los resultados}
+Finalmente, para que los resultados sean accesibles y comprensibles para todos, se publicarán en una página web creada con PowerPages en la que se alojará el cuadro de mando creado con PowerBI previamente. 
+Esto se hace con el fin de que los datos sean accesibles y comprensibles fácilmente por los usuarios.
+Dicha plataforma permite la creación de páginas web de forma sencilla y rápida sin necesidad de escribir código. 
+Se puede alojar el cuadro de mando de PowerBI simplemente copiando su URL o su código en HTML.
+Dado que el objetivo es únicamente mostrar información no es necesario implementar una sistema de cuentas.
+En relación con esto, es suficiente con crear una cuenta de administrador que configure las consultas necesarias.
