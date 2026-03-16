@@ -1,7 +1,7 @@
 # Trabajo de Fin de Grado: Digitalización del Boletín de Turismo del Observatorio de la Provincia de Burgos
 
 ## Descripción
-Este proyecto tiene como objetivo la creación de un cuadro de mando en Power BI. Para ello, se ha desarrollado un pipeline de extracción de reseñas y puntos de interés y otro pipeline de preprocesamiento de datos. Además, se ha entrenado un modelo de aprendizaje automático con el fin de predecir la categoría de los puntos de interés a partir de un conjunto de datos. Finalmente se ha desarrollado un sistema de predicción de categorías y recomendaciones para los puntos de interés.
+Este proyecto tiene como objetivo la creación de un cuadro de mando en Looker Studio. Para ello, se ha desarrollado un pipeline de extracción de reseñas y puntos de interés y otro pipeline de preprocesamiento de datos. Además, se ha entrenado un modelo de aprendizaje automático con el fin de predecir la categoría de los puntos de interés a partir de un conjunto de datos. Finalmente se ha desarrollado un sistema de predicción de categorías y recomendaciones para los puntos de interés.
 
 ## Características
  - Extracción de reseñas y puntos de interés
@@ -10,7 +10,7 @@ Este proyecto tiene como objetivo la creación de un cuadro de mando en Power BI
  - Sistema de información en Power BI
 
 ## Autor
-  Christian Andrés Núñez Duque
+  Nicolás Pérez Ibáñez
 
 ## Tutores
  - Bruno Baruque Zanón
