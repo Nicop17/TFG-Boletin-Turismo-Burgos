@@ -8,11 +8,11 @@ def parse_coordinates(coord_str):
         return f"{{'lat': {coord_json['latitude']}, 'lng': {coord_json['longitude']}}}"
     except:
         return ''
-
-def to_iso_ms_z(dt_str):
+  
+def to_mysql_datetime(dt_str):
     try:
         dt = datetime.fromisoformat(dt_str.replace('Z', ''))
-        return dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
     except:
         return dt_str
 
@@ -68,7 +68,7 @@ def process_reviews(reviews_file, poi_file, state):
         raw_text = safe_get(review.get('review_text', ''))
         title = safe_get(review.get('place_name', ''))
         raw_date = safe_get(review.get('published_at_date', ''))
-        publishedAtDate = to_iso_ms_z(raw_date)
+        publishedAtDate = to_mysql_datetime(raw_date)
         url = safe_get(review.get('review_link', ''))
         name = safe_get(review.get('name', ''))
         placeId = pid
