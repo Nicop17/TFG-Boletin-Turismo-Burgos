@@ -7,8 +7,11 @@ Este proyecto tiene como objetivo la creación de un cuadro de mando en Looker S
  - Extracción de reseñas y puntos de interés
  - Predicción de categorías mediante aprendizaje automático
  - Sistema de recomendación de puntos de interés
- - Sistema de información en Power BI
+ - Sistema de información en Looker Studio
 
+## Documentación
+ - Enlace al proyecto de Overleaf: https://es.overleaf.com/read/fzzwvrnxrcdr#0e99cb
+ 
 ## Autor
   Nicolás Pérez Ibáñez
 
