@@ -1,0 +1,12 @@
+# Llaves y secrets
+.env
+key.json
+
+# Archivos temporales de python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Entornos virtuales
+venv/
+env/
