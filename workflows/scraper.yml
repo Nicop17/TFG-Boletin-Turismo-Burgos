@@ -1,0 +1,33 @@
+name: Run Burgos Scraper
+
+on:
+  workflow_dispatch: # Permite lanzarlo a mano para probar
+  schedule:
+    - cron: '0 3 1 * *' # Se ejecuta el día 1 de cada mes a las 03:00
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Setup Google Cloud Key
+      run: |
+        echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > key.json
+
+    - name: Run Scraper
+      env:
+        APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+      run: python src/scraper_burgos.py
