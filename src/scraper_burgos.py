@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from apify_client import ApifyClient
 from google.cloud import bigquery
 from google.oauth2 import service_account
+from deep_translator import GoogleTranslator
+from langdetect import detect
+from concurrent.futures import ThreadPoolExecutor
 
 # Configuración de acceso a Google BigQuery y Apify
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +21,7 @@ with open(os.path.join(root_dir, "key.json")) as f:
 client_bq = bigquery.Client(credentials=service_account.Credentials.from_service_account_info(info), project=info['project_id'])
 client_apify = ApifyClient(os.getenv("APIFY_TOKEN"))
 dataset = "tfg-boletin-turismo-burgos.ds_turismo_reviews"
+
 
 def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fields):
     """Ejecuta un MERGE en BigQuery para automatizar el Upsert."""
@@ -64,6 +68,53 @@ def get_last_stored_review_id(poi_id):
     """
     results = list(client_bq.query(query).result())
     return results[0].review_id if results else None
+
+
+def clean_translate_review(rev, p_id):
+    """Procesa una sola reseña: limpieza, filtro y traducción."""
+    text_raw = rev.get('text') or ""
+    print(f"Analizando reseña {rev.get('reviewId')}: '")
+    if not text_raw or len(text_raw.split()) < 8:
+        print(f"DESCARTADA: Solo {len(text_raw.split())} palabras (mínimo 8).")
+        return None # Filtro de longitud mínima (8 palabras)
+
+    # Limpieza básica de saltos de línea
+    text_clean = text_raw.replace('\n', ' ').replace('\r', ' ').strip()
+    
+    # Limpiar etiquetas de Google si existen
+    text_clean = text_clean.replace("(Traducción de Google)", "").replace("(Original)", "").strip()
+
+    # 3. Detección Real de Idioma
+    try:
+        # Detectamos el idioma real del texto, ignorando lo que diga la API
+        detected_lang = detect(text_clean)
+    except:
+        detected_lang = 'es'
+
+    # Traducción si no es español
+    text_es = text_clean
+    if detected_lang != 'es':
+        try:
+            print(f"IDIOMA: {detected_lang} detectado. Traduciendo al español...")
+            text_es = GoogleTranslator(source='auto', target='es').translate(text_clean)
+        except:
+            print(f"Error traduciendo reseña {rev.get('reviewId')}")
+            text_es = text_clean
+
+    return {
+        "review_id": rev.get('reviewId'),
+        "poi_id": p_id,
+        "reviewer_name": rev.get('name', 'Anónimo'),
+        # "reviewer_gender": None,           # Placeholder
+        "review_text": text_es,            # Español
+        "review_text_original": text_clean, # Original
+        "review_language": detected_lang,
+        "review_rating": float(rev.get('stars', 0)),
+        "review_date": rev.get('publishedAtDate')[:10] if rev.get('publishedAtDate') else None,
+        # "sentiment_label": None,           # Placeholder
+        # "sentiment_score": None,           # Placeholder
+        "extraction_timestamp": datetime.now().isoformat()
+    }
 
 
 def run_scraper():  
@@ -124,7 +175,7 @@ def run_scraper():
         print("POIs ya actualizados hoy. Saltando al siguiente paso.")
 
 
-    # --- PASO 2: EXTRAER RESEÑAS POI A POI (Orden previsible) ---
+    # PASO 2: EXTRAER RESEÑAS POI A POI
     # Buscamos POIs pendientes de hoy, ordenados siempre igual por ID
     query_pendientes = f"""
         SELECT poi_id, poi_name, poi_id as url_id FROM `{dataset}.pois`
@@ -142,6 +193,7 @@ def run_scraper():
         rev_input = {
             "startUrls": [{"url": f"https://www.google.com/maps/place/?q=place_id:{p_id}"}],
             "maxReviews": 2,
+            "onlyWithText": True,
             "language": "es",
             "personalData": True,
             "reviewsSort": "newest"
@@ -150,25 +202,47 @@ def run_scraper():
         reviews_items = list(client_apify.dataset(rev_run["defaultDatasetId"]).iterate_items())
 
         reviews_to_load = []
-        for rev in reviews_items:
-            # SI DETECTA UNA RESEÑA QUE YA TENEMOS, SALTA AL SIGUIENTE POI
-            if rev.get('reviewId') == last_id_in_db:
-                print(f"Coincidencia hallada ({last_id_in_db}). Finalizando este POI.")
-                break
 
-            reviews_to_load.append({
-                "review_id": rev.get('reviewId'), 
-                "poi_id": p_id,
-                "reviewer_name": rev.get('name', 'Anónimo'),
-                # "reviewer_gender": None, 
-                "review_text": rev.get('text'),
-                "review_rating": float(rev.get('stars', 0)),
-                "review_date": rev.get('publishedAtDate')[:10] if rev.get('publishedAtDate') else None,
-                "review_language": rev.get('language', 'es'),
-                # "sentiment_label": None, 
-                # "sentiment_score": None,
-                "extraction_timestamp": datetime.now().isoformat()
-            })
+        # with ThreadPoolExecutor(max_workers=5) as executor:
+        #     futures = [executor.submit(clean_translate_review, r, p_id) for r in reviews_items]
+        #     for future in futures:
+        #         res = future.result()
+        #         if res:
+        #             # SI DETECTA UNA RESEÑA QUE YA TENEMOS, SALTA AL SIGUIENTE POI
+        #             if res['review_id'] == last_id_in_db:
+        #                 print(f"Coincidencia hallada. Parando POI.")
+        #                 break
+        #             reviews_to_load.append(res)
+
+        # Eliminamos el ThreadPool temporalmente para ver errores claros en consola si los hay
+        for r in reviews_items:
+            res = clean_translate_review(r, p_id)
+            if res:
+                if res['review_id'] == last_id_in_db:
+                    print(f"Coincidencia hallada. Parando POI.")
+                    break
+                reviews_to_load.append(res)
+
+
+        # for rev in reviews_items:
+        #     # SI DETECTA UNA RESEÑA QUE YA TENEMOS, SALTA AL SIGUIENTE POI
+        #     if rev.get('reviewId') == last_id_in_db:
+        #         print(f"Coincidencia hallada ({last_id_in_db}). Finalizando este POI.")
+        #         break
+
+        #     reviews_to_load.append({
+        #         "review_id": rev.get('reviewId'), 
+        #         "poi_id": p_id,
+        #         "reviewer_name": rev.get('name', 'Anónimo'),
+        #         # "reviewer_gender": None, 
+        #         "review_text": rev.get('text'),
+        #         "review_rating": float(rev.get('stars', 0)),
+        #         "review_date": rev.get('publishedAtDate')[:10] if rev.get('publishedAtDate') else None,
+        #         "review_language": rev.get('language', 'es'),
+        #         # "sentiment_label": None, 
+        #         # "sentiment_score": None,
+        #         "extraction_timestamp": datetime.now().isoformat()
+        #     })
 
         # Carga en BigQuery
 
