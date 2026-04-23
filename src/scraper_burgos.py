@@ -150,11 +150,11 @@ def update_poi_tori(p_id):
     """Calcula la media de sentimientos y actualiza el TORI en la tabla pois."""   
     # 1. Busca la nota media de Google (poi_total_rating)
     # 2. Calcula la media de todos los sentiment_score de ese poi
-    # 3. Calcula el TORI: TS + 1.25 * Media_Sentimientos
+    # 3. Calcula el TORI: TS + 5 * Media_Sentimientos
     query = f"""
     UPDATE `{dataset}.pois`
-    SET tori_score = poi_total_rating + (1.25 * (
-        SELECT COALESCE(AVG(sentiment_score), 0) 
+    SET tori_score = (1.25 * (poi_total_rating - 1)) + (2.5 * (
+        SELECT COALESCE(AVG(sentiment_score), 0) + 1 
         FROM `{dataset}.reviews` 
         WHERE poi_id = '{p_id}'
     ))
@@ -162,8 +162,7 @@ def update_poi_tori(p_id):
     """
     
     try:
-        query_job = client_bq.query(query)
-        query_job.result()
+        client_bq.query(query).result()
         print(f"TORI actualizado para el POI: {p_id}")
     except Exception as e:
         print(f"Error actualizando TORI: {e}")
@@ -174,110 +173,127 @@ def run_scraper():
     today = datetime.now().strftime('%Y-%m-%d')
     print(f"Iniciando scraper - Ejecución del {today}")
 
-    # ACTUALIZAR TODA LA TABLA DE POIS PRIMERO 
-    # Comprobar si los POIs ya se actualizaron hoy
-    check_pois_sql = f"SELECT count(*) as total FROM `{dataset}.pois` WHERE DATE(extraction_timestamp) = '{today}'"
-    pois_already_updated = list(client_bq.query(check_pois_sql).result())[0].total > 0
+    # 1. OBTENER MUNICIPIOS PENDIENTES
+    # Para la prueba, solo buscamos Frías. En el futuro, quitamos el filtro de nombre.
+    query_muni = f"SELECT id_municipality, name FROM `{dataset}.municipalities` WHERE name = 'Frías'"
+    municipalities = list(client_bq.query(query_muni).result())
 
-    if not pois_already_updated:
-        print("Actualizando tabla de POIs...")
-        # Obtener 2 POIs
-        poi_input = {
-            "searchStringsArray": ["Catedral de Burgos", "Monasterio de las Huelgas"],
-            "maxPlacesPerQuery": 1
-        }
-        poi_run = client_apify.actor("compass/crawler-google-places").call(run_input=poi_input)
-        pois_items = list(client_apify.dataset(poi_run["defaultDatasetId"]).iterate_items())
+    # 2. OBTENER CATEGORÍAS (Para probar, solo 'Restoration')
+    query_cat = f"SELECT level_1_category, level_2_category, level_3_category, level_4_category FROM `{dataset}.categories` WHERE level_4_category = 'Restoration'"
+    categories = list(client_bq.query(query_cat).result())
 
-        pois_to_load = []
-
-    # Por cada POI, sacar 2 reseñas
-        for poi in pois_items:
-            dist = poi.get('reviewsDistribution', {})         
-
-            pois_to_load.append({
-                "poi_id": poi.get('placeId'),
-                "poi_name": poi.get('title'),
-                "poi_category": poi.get('categoryName'),
-                "poi_municipality": poi.get('city', 'Burgos'),
-                "poi_total_rating": float(poi.get('totalScore', 0)) if poi.get('totalScore') else 0.0,
-                "reviews_count": int(poi.get('reviewsCount', 0)),
-                "reviews_dist_5star": int(dist.get('fiveStar', 0)),
-                "reviews_dist_4star": int(dist.get('fourStar', 0)),
-                "reviews_dist_3star": int(dist.get('threeStar', 0)),
-                "reviews_dist_2star": int(dist.get('twoStar', 0)),
-                "reviews_dist_1star": int(dist.get('oneStar', 0)),
-                "latitude": poi.get('location', {}).get('lat'),
-                "longitude": poi.get('location', {}).get('lng'),
-                "location": f"POINT({poi.get('location', {}).get('lng')} {poi.get('location', {}).get('lat')})",
-                "wheelchair_accessible": bool(poi.get('isWheelchairAccessible')),
-                "child_friendly": bool(poi.get('canTakeChildren')),
-                "claim_business": bool(poi.get('isClaimed')),
-                "extraction_timestamp": datetime.now().isoformat()
-            })
+    for muni in municipalities:
+        print(f"\nPROCESANDO MUNICIPIO: {muni.name}")
         
-        if pois_to_load:
-            stg_poi = f"{dataset}.stg_pois_{int(datetime.now().timestamp())}"
-            client_bq.load_table_from_json(pois_to_load, stg_poi).result()
-            poi_fields = list(pois_to_load[0].keys())
-            poi_updates = ["poi_total_rating", "reviews_count", "reviews_dist_5star", "reviews_dist_4star", 
-                           "reviews_dist_3star", "reviews_dist_2star", "reviews_dist_1star", "extraction_timestamp"]
-            run_merge_query(f"{dataset}.pois", stg_poi, "poi_id", poi_updates, poi_fields)
-            print("Tabla de POIs actualizada.")
-    else:
-        print("POIs ya actualizados hoy. Saltando al siguiente paso.")
-
-
-    # EXTRAER RESEÑAS POI A POI
-    # Buscamos POIs pendientes de hoy, ordenados siempre igual por ID
-    query_pendientes = f"""
-        SELECT poi_id, poi_name, poi_id as url_id FROM `{dataset}.pois`
-        WHERE DATE(last_review_extraction) != '{today}' OR last_review_extraction IS NULL
-        ORDER BY poi_id ASC
-    """
-    pois_pendientes = list(client_bq.query(query_pendientes).result())
-
-    for poi in pois_pendientes:
-        p_id = poi.poi_id
-        print(f" Sacando reseñas para: {poi.poi_name}...")
-
-        last_id_in_db = get_last_stored_review_id(p_id)
-
-        rev_input = {
-            "startUrls": [{"url": f"https://www.google.com/maps/place/?q=place_id:{p_id}"}],
-            "maxReviews": 5,
-            # "reviewsStartDate": "1 day", # Solo para la carga masiva de datos inicial
-            "language": "es",
-            "personalData": True,
-            "reviewsSort": "newest",
-            "reviewsOrigin": "google" # Para evitar mezclar reseñas de otras fuentes
-        }
-        rev_run = client_apify.actor("compass/google-maps-reviews-scraper").call(run_input=rev_input)
-        reviews_items = list(client_apify.dataset(rev_run["defaultDatasetId"]).iterate_items())
-
-        reviews_to_load = []
-
-        for r in reviews_items:
-            res = clean_translate_review(r, p_id)
-            if res:
-                if res['review_id'] == last_id_in_db:
-                    print(f"Coincidencia hallada. Parando POI.")
-                    break
-                reviews_to_load.append(res)
-
-        # Carga en BigQuery
-        # PROCESAR RESEÑAS (Insertar solo si no existe el review_id)
-        if reviews_to_load:
-            stg_rev = f"{dataset}.stg_reviews_{int(datetime.now().timestamp())}"
-            client_bq.load_table_from_json(reviews_to_load, stg_rev).result()
-            rev_fields = list(reviews_to_load[0].keys())
-            # En reseñas no actualizamos nada (Matched = nada), solo insertamos nuevas
-            run_merge_query(f"{dataset}.reviews", stg_rev, "review_id", ["extraction_timestamp"], rev_fields)
-            print(f"{len(reviews_to_load)} Nuevas reseñas añadidas sin duplicados.")
-
-        client_bq.query(f"UPDATE `{dataset}.pois` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE poi_id = '{p_id}'").result()
+        # --- FASE A: DESCUBRIMIENTO DE POIS POR CATEGORÍA ---
+        for cat in categories:
+            print(f" Buscando {cat.level_4_category} en {muni.name}...")
         
-        update_poi_tori(p_id) # Actualizamos el TORI de ese POI tras cargar sus reseñas
-        
+            print("Actualizando tabla de POIs...")
+            poi_input = {
+                "searchStringsArray": [f"{cat.level_4_category} en {muni.name}, Burgos, Spain"],
+                "maxPlacesPerQuery": 5
+            }
+            poi_run = client_apify.actor("compass/crawler-google-places").call(run_input=poi_input)
+            pois_items = list(client_apify.dataset(poi_run["defaultDatasetId"]).iterate_items())
+            pois_to_load = []
+
+            for poi in pois_items:
+                # Filtra por código postal de Burgos (09xxx)
+                cp = poi.get('postalCode', '')
+                if not cp or not cp.startswith('09'):
+                    continue
+                
+                dist = poi.get('reviewsDistribution', {})         
+
+                pois_to_load.append({
+                    "poi_id": poi.get('placeId'),
+                    "poi_name": poi.get('title'),
+                    "poi_municipality": muni.name,
+                    "maps_category": poi.get('categoryName'),
+                    "level_1_category": cat.level_1_category,
+                    "level_2_category": cat.level_2_category,
+                    "level_3_category": cat.level_3_category,
+                    "level_4_category": cat.level_4_category,
+                    "poi_total_rating": float(poi.get('totalScore', 0)) if poi.get('totalScore') else 0.0,
+                    "reviews_count": int(poi.get('reviewsCount', 0)),
+                    "reviews_dist_5star": int(dist.get('fiveStar', 0)),
+                    "reviews_dist_4star": int(dist.get('fourStar', 0)),
+                    "reviews_dist_3star": int(dist.get('threeStar', 0)),
+                    "reviews_dist_2star": int(dist.get('twoStar', 0)),
+                    "reviews_dist_1star": int(dist.get('oneStar', 0)),
+                    "latitude": poi.get('location', {}).get('lat'),
+                    "longitude": poi.get('location', {}).get('lng'),
+                    "location": f"POINT({poi.get('location', {}).get('lng')} {poi.get('location', {}).get('lat')})",
+                    "wheelchair_accessible": bool(poi.get('isWheelchairAccessible')),
+                    "child_friendly": bool(poi.get('canTakeChildren')),
+                    "claim_business": bool(poi.get('isClaimed')),
+                    "extraction_timestamp": datetime.now().isoformat()
+                })
+            
+            if pois_to_load:
+                stg_poi = f"{dataset}.stg_pois_{int(datetime.now().timestamp())}"
+                client_bq.load_table_from_json(pois_to_load, stg_poi).result()
+                poi_fields = list(pois_to_load[0].keys())
+                poi_updates = ["poi_total_rating", "reviews_count", "reviews_dist_5star", "reviews_dist_4star", 
+                            "reviews_dist_3star", "reviews_dist_2star", "reviews_dist_1star", "extraction_timestamp"]
+                run_merge_query(f"{dataset}.pois", stg_poi, "poi_id", poi_updates, poi_fields)
+                print(f"{len(pois_to_load)} POIs actualizados en {muni.name}")
+            else:
+                print("POIs ya actualizados hoy. Saltando al siguiente paso.")
+
+        client_bq.query(f"UPDATE `{dataset}.municipalities` SET extraction_timestamp = CURRENT_TIMESTAMP() WHERE name = '{muni.name}'").result()
+
+        # EXTRAER RESEÑAS POI A POI
+        # Buscamos POIs pendientes de hoy, ordenados siempre igual por ID
+        query_pendientes = f"""
+            SELECT poi_id, poi_name, poi_id as url_id FROM `{dataset}.pois`
+            WHERE DATE(last_review_extraction) != '{today}' OR last_review_extraction IS NULL
+            ORDER BY poi_id ASC
+        """
+        pois_pendientes = list(client_bq.query(query_pendientes).result())
+
+        for poi in pois_pendientes:
+            p_id = poi.poi_id
+            print(f" Sacando reseñas para: {poi.poi_name}...")
+
+            last_id_in_db = get_last_stored_review_id(p_id)
+
+            rev_input = {
+                "startUrls": [{"url": f"https://www.google.com/maps/place/?q=place_id:{p_id}"}],
+                "maxReviews": 1,
+                # "reviewsStartDate": "1 day", # Solo para la carga masiva de datos inicial
+                "language": "es",
+                "personalData": True,
+                "reviewsSort": "newest",
+                "reviewsOrigin": "google" # Para evitar mezclar reseñas de otras fuentes
+            }
+            rev_run = client_apify.actor("compass/google-maps-reviews-scraper").call(run_input=rev_input)
+            reviews_items = list(client_apify.dataset(rev_run["defaultDatasetId"]).iterate_items())
+
+            reviews_to_load = []
+
+            for r in reviews_items:
+                res = clean_translate_review(r, p_id)
+                if res:
+                    if res['review_id'] == last_id_in_db:
+                        print(f"Coincidencia hallada. Parando POI.")
+                        break
+                    reviews_to_load.append(res)
+
+            # Carga en BigQuery
+            # PROCESAR RESEÑAS (Insertar solo si no existe el review_id)
+            if reviews_to_load:
+                stg_rev = f"{dataset}.stg_reviews_{int(datetime.now().timestamp())}"
+                client_bq.load_table_from_json(reviews_to_load, stg_rev).result()
+                rev_fields = list(reviews_to_load[0].keys())
+                run_merge_query(f"{dataset}.reviews", stg_rev, "review_id", ["extraction_timestamp"], rev_fields)
+                update_poi_tori(p_id) # Actualizamos el TORI de ese POI tras cargar sus reseñas
+                print(f"{len(reviews_to_load)} Nuevas reseñas añadidas sin duplicados.")
+
+            client_bq.query(f"UPDATE `{dataset}.pois` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE poi_id = '{p_id}'").result()          
+            
+        client_bq.query(f"UPDATE `{dataset}.municipalities` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE name = '{muni.name}'").result()
+        print(f"🏁 Municipio {muni.name} completado con éxito.")
 if __name__ == "__main__":
     run_scraper()
