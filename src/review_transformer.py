@@ -66,6 +66,7 @@ def clean_translate_review(rev, p_id):
     return {
         "review_id": rev.get('reviewId'),
         "poi_id": p_id,
+        "reviewer_id": rev.get('reviewerId'),
         "reviewer_name": rev.get('name', 'Anónimo'),
         "reviewer_gender": reviewer_gender,           
         "review_text": text_es,            # Español

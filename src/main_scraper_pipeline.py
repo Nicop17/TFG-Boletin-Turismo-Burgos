@@ -40,6 +40,12 @@ def run_scraper():
                         if not cp or not cp.startswith('09'): 
                             continue
                         
+                        additional_info = poi.get('additionalInfo', {})
+                        accesibility_list = additional_info.get('Accessibility', [])
+                        wheelchair = any(item.get('Wheelchair accessible entrance') for item in accesibility_list)
+                        children_list = additional_info.get('Children', [])
+                        children_friendly = any(item.get('Good for kids') for item in children_list)
+
                         dist = poi.get('reviewsDistribution', {})
                         pois_to_load.append({
                             "poi_id": poi.get('placeId'),
@@ -50,19 +56,25 @@ def run_scraper():
                             "level_2_category": cat.level_2_category,
                             "level_3_category": cat.level_3_category,
                             "level_4_category": cat.level_4_category,
-                            "poi_total_rating": float(poi.get('totalScore', 0)) if poi.get('totalScore') else 0.0,
-                            "reviews_count": int(poi.get('reviewsCount', 0)),
-                            "reviews_dist_5star": int(dist.get('fiveStar', 0)),
-                            "reviews_dist_4star": int(dist.get('fourStar', 0)),
-                            "reviews_dist_3star": int(dist.get('threeStar', 0)),
-                            "reviews_dist_2star": int(dist.get('twoStar', 0)),
-                            "reviews_dist_1star": int(dist.get('oneStar', 0)),
+                            "poi_total_rating": float(poi.get('totalScore') or 0) if poi.get('totalScore') else 0.0,
+                            "reviews_count": int(poi.get('reviewsCount') or 0),
+                            "reviews_dist_5star": int(dist.get('fiveStar') or 0),
+                            "reviews_dist_4star": int(dist.get('fourStar') or 0),
+                            "reviews_dist_3star": int(dist.get('threeStar') or 0),
+                            "reviews_dist_2star": int(dist.get('twoStar') or 0),
+                            "reviews_dist_1star": int(dist.get('oneStar') or 0),
                             "latitude": poi.get('location', {}).get('lat'),
                             "longitude": poi.get('location', {}).get('lng'),
                             "location": f"POINT({poi.get('location', {}).get('lng')} {poi.get('location', {}).get('lat')})",
-                            "wheelchair_accessible": bool(poi.get('isWheelchairAccessible')),
-                            "child_friendly": bool(poi.get('canTakeChildren')),
-                            "claim_business": bool(poi.get('isClaimed')),
+                            "price": poi.get('price'),
+                            "images_count": int(poi.get('imagesCount') or 0),
+                            "google_official_tags": ", ".join([t.get('title') for t in poi.get('reviewsTags', [])]),
+                            "related_pois": ", ".join([p.get('title') for p in poi.get('peopleAlsoSearch', [])]),
+                            "temporarily_closed": bool(poi.get('temporarilyClosed')),
+                            "permanently_closed": bool(poi.get('permanentlyClosed')),
+                            "wheelchair_accessible": wheelchair,
+                            "child_friendly": children_friendly,
+                            "claim_business": poi.get('claimThisBusiness'),
                             "last_poi_update": datetime.now().isoformat()
                         })
                     
@@ -70,7 +82,9 @@ def run_scraper():
                         stg_poi = f"{loader.dataset}.stg_pois_{int(datetime.now().timestamp())}"
                         loader.client_bq.load_table_from_json(pois_to_load, stg_poi).result()
                         poi_updates = ["poi_total_rating", "reviews_count", "reviews_dist_5star", "reviews_dist_4star", 
-                                    "reviews_dist_3star", "reviews_dist_2star", "reviews_dist_1star", "last_poi_update"]
+                                    "reviews_dist_3star", "reviews_dist_2star", "reviews_dist_1star", "images_count", 
+                                    "temporarily_closed", "permanently_closed", "google_official_tags", "related_pois", 
+                                    "wheelchair_accessible", "child_friendly", "claim_business","last_poi_update"]
                         loader.run_merge_query(f"{loader.dataset}.pois", stg_poi, "poi_id", poi_updates, list(pois_to_load[0].keys()))
                         print(f"{len(pois_to_load)} POIs actualizados en {muni.name}")
                     else:
