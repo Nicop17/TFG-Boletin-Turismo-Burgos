@@ -2,7 +2,7 @@ name: Run Burgos Scraper
 
 on:
   workflow_dispatch: # Permite lanzarlo a mano para probar
-  schedule:
+  # schedule:
     # - cron: '0 3 1 * *' # Se ejecuta el día 1 de cada mes a las 03:00 
     # Comentado hoy para que no ejecute
 
