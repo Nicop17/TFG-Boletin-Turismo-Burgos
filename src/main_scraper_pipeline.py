@@ -4,58 +4,118 @@ import review_transformer as transformer
 import apify_extractor as extractor
 
 def run_scraper():
-    today = datetime.now().strftime('%Y-%m-%d')
-    print(f"Iniciando scraper - Ejecución del {today}")
+    today_dt = datetime.now()
+    today_str = today_dt.strftime('%Y-%m-%d')
+    cp_burgos_capital = ['09001', '09002', '09003', '09004', '09005', '09006', '09007']
+    margin_days_poi = 90 # Número de días para considerar un POI como no actualizado y volver a extraerlo
+    margin_days_reviews = 30 # Número de días para considerar las reseñas de un POI como no actualizadas y volver a extraerlas
+    print(f"Iniciando scraper - Ejecución del {today_str} - POIs no actualizados desde hace {margin_days_poi} días o más serán procesados.")
 
     # 1. Obtener municipios y categorías desde BigQuery
     # Filtramos municipios que no han sido procesados hoy ni en extracción general ni en extracción de reseñas
-    query_muni = f"""
-        SELECT id_municipality, name, last_poi_update, last_review_extraction 
-        FROM `{loader.dataset}.municipalities`
-        WHERE (DATE(last_poi_update) != '{today}' OR last_poi_update IS NULL)
-           OR (DATE(last_review_extraction) != '{today}' OR last_review_extraction IS NULL)
-        ORDER BY id_municipality ASC
-    """
+    # query_muni = f"""
+    #     SELECT id_municipality, name, last_poi_update, last_review_extraction 
+    #     FROM `{loader.dataset}.municipalities`
+    #     WHERE last_poi_update IS NULL 
+    #        OR DATE_DIFF(CURRENT_DATE(), DATE(last_poi_update), DAY) >= {margin_days_poi}
+    #        OR last_review_extraction IS NULL
+    #        OR DATE_DIFF(CURRENT_DATE(), DATE(last_review_extraction), DAY) >= {margin_days_reviews}
+    #     ORDER BY id_municipality ASC
+    # """
+    query_muni = f"SELECT id_municipality, name, last_poi_update FROM `{loader.dataset}.municipalities` WHERE name = 'Abajas'"
     municipalities = list(loader.execute_query(query_muni))
 
+    cat_rows = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories`"))
+    taxonomy = {c.maps_category: (c.level_1_category, c.level_2_category, c.level_3_category, c.level_4_category) 
+                for c in cat_rows if c.maps_category}
+
     for muni in municipalities:
-        muni_pois_date = str(muni.last_poi_update)[:10] if muni.last_poi_update else None
-        print(f"\nPROCESANDO MUNICIPIO: {muni.name}")
+        print(f"\n{'-'*30}\n MUNICIPIO: {muni.name}\n{'-'*30}")
+
+        # Si es Burgos, iteramos por CPs. Si no, solo por el nombre del municipio.
+        sub_busqueda = cp_burgos_capital if muni.name == "Burgos" else [muni.name]
         
         # FASE A: Descubrimiento de POIs
-        # Solo entramos si no se ha actualizado el catálogo de POIs del municipio hoy
-        if muni_pois_date != today:
-            categories = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories` WHERE level_4_category = 'Parks and gardens'"))
-            for cat in categories: # Pois por categoría
-                cat_poi_date = str(cat.last_poi_update)[:10] if cat.last_poi_update else None
+        # Solo entramos si no se ha actualizado el catálogo de POIs del municipio en los últimos margin_days_poi días
+        muni_can_update_poi = muni.last_poi_update is None or (today_dt.date() - muni.last_poi_update.date()).days >= margin_days_poi
+        if muni_can_update_poi:
+            # Iteramos por cada sub-área (sea código postal o el municipio entero)
+            for subsite in sub_busqueda:
+                # Consultamos qué categorías ya se han buscado en este municipio en los últimos {margin_days_poi} días
+                query_log = f"""
+                    SELECT category FROM `{loader.dataset}.scraper_control`
+                    WHERE municipality_name = '{muni.name}'
+                    AND subsite = '{subsite}'
+                    AND DATE_DIFF(CURRENT_DATE(), DATE(last_update), DAY) < {margin_days_poi}
+                """
+                done_categories = [r.category for r in loader.execute_query(query_log)]
                 
-                if cat_poi_date != today:
-                    print(f" Buscando {cat.level_4_category} en {muni.name}...")
-                    pois_items = extractor.fetch_pois_from_apify(f"{cat.level_4_category} en {muni.name}, Burgos, Spain")
-                    
+                categories = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories` ORDER BY level_1_category ASC, level_2_category ASC, level_3_category ASC, level_4_category ASC, maps_category ASC"))
+
+                for cat in categories: # Pois por categoría
+                    # Comprobamos si esta categoría específica ya se buscó en este municipio
+                    if cat.maps_category in done_categories:
+                        continue
+
+                    # Si subsite es CP (numérico), formato CP. Si no, formato municipio completo
+                    if subsite.isdigit():
+                        search_query = f"{cat.maps_category} {subsite}, Burgos, Spain"
+                    else:
+                        search_query = f"{cat.maps_category} en {subsite}, Burgos, Spain"
+
+                    print(f" Buscando '{cat.maps_category}' en {subsite}...")
+                    pois_items = extractor.fetch_pois_from_apify(search_query)
+                                   
                     pois_to_load = []
                     for poi in pois_items:
-                        # Filtra por código postal de Burgos (09xxx)
+                        # Filtra por código postal de Burgos (09xxx) para evitar POIs de otros municipios con nombres similares o errores de geolocalización
                         cp = poi.get('postalCode', '')
                         if not cp or not cp.startswith('09'): 
                             continue
-                        
+
+                        poi_city = poi.get('city', '')
+                        poi_address = poi.get('address', '')
+
+                        # Descarta el POI por ser de otro municipio, comprobando que ni en el campo de ciudad ni en el de dirección aparece el nombre del municipio que estamos procesando
+                        if muni.name.lower() not in poi_city.lower() and muni.name.lower() not in poi_address.lower():
+                            continue
+
+                        google_cat = poi.get('categoryName')
+                
+                        if google_cat in taxonomy:
+                            # Usamos la jerarquía que ya tenemos guardada para esa categoría oficial de Google
+                            l1, l2, l3, l4 = taxonomy[google_cat]
+                        else:
+                            # Categoría nueva que se añade a la rama que estamos buscando ahora
+                            l1, l2, l3, l4 = (cat.level_1_category, cat.level_2_category, 
+                                            cat.level_3_category, cat.level_4_category)
+                            
+                            # La añadimos a la tabla de categorías para la próxima vez
+                            print(f"Nueva categoría detectada: {google_cat}. Asignando a {l4}")
+                            loader.execute_query(f"""
+                                INSERT INTO `{loader.dataset}.categories` 
+                                (level_1_category, level_2_category, level_3_category, level_4_category, maps_category)
+                                VALUES ('{l1}', '{l2}', '{l3}', '{l4}', '{google_cat}')
+                            """)
+                            # Actualizamos el diccionario en memoria para no insertarla dos veces
+                            taxonomy[google_cat] = (l1, l2, l3, l4)
+                                
                         additional_info = poi.get('additionalInfo', {})
                         accesibility_list = additional_info.get('Accessibility', [])
                         wheelchair = any(item.get('Wheelchair accessible entrance') for item in accesibility_list)
                         children_list = additional_info.get('Children', [])
                         children_friendly = any(item.get('Good for kids') for item in children_list)
-
                         dist = poi.get('reviewsDistribution', {})
+                        
                         pois_to_load.append({
                             "poi_id": poi.get('placeId'),
                             "poi_name": poi.get('title'),
                             "poi_municipality": muni.name,
-                            "maps_category": poi.get('categoryName'),
-                            "level_1_category": cat.level_1_category,
-                            "level_2_category": cat.level_2_category,
-                            "level_3_category": cat.level_3_category,
-                            "level_4_category": cat.level_4_category,
+                            "maps_category": google_cat,
+                            "level_1_category": l1,
+                            "level_2_category": l2,
+                            "level_3_category": l3,
+                            "level_4_category": l4,
                             "poi_total_rating": float(poi.get('totalScore') or 0) if poi.get('totalScore') else 0.0,
                             "reviews_count": int(poi.get('reviewsCount') or 0),
                             "reviews_dist_5star": int(dist.get('fiveStar') or 0),
@@ -88,16 +148,18 @@ def run_scraper():
                         loader.run_merge_query(f"{loader.dataset}.pois", stg_poi, "poi_id", poi_updates, list(pois_to_load[0].keys()))
                         print(f"{len(pois_to_load)} POIs actualizados en {muni.name}")
                     else:
-                        print(f"No se encontraron nuevos POIs para {cat.level_4_category} en {muni.name}.")
+                        print(f"No se encontraron nuevos POIs para {cat.maps_category} en {muni.name}.")
 
-                else:
-                    print(f"POIs ya actualizados hoy para {cat.level_4_category}. Saltando a la siguiente categoría.")
-
-            # Marcamos municipio como procesado hoy
+                    loader.execute_query(f"""
+                        INSERT INTO `{loader.dataset}.scraper_control` (municipality_name, subsite, category, last_update)
+                        VALUES ('{muni.name}', '{subsite}', '{cat.maps_category}', CURRENT_TIMESTAMP())
+                    """)
+                        
+            # Marcamos municipio como procesado esta semana
             loader.execute_query(f"UPDATE `{loader.dataset}.municipalities` SET last_poi_update = CURRENT_TIMESTAMP() WHERE name = '{muni.name}'")
 
         else:
-            print(f"Fase A (POIs) ya completada hoy para {muni.name}. Saltando a reseñas.")
+            print(f"Fase A (POIs) ya completada para {muni.name} recientemente. Saltando a reseñas.")
 
       
         # FASE B: EXTRAER RESEÑAS POI A POI
@@ -105,7 +167,8 @@ def run_scraper():
         query_pendientes = f"""
             SELECT poi_id, poi_name, poi_id as url_id FROM `{loader.dataset}.pois`
             WHERE poi_municipality = '{muni.name}'
-            AND (DATE(last_review_extraction) != '{today}' OR last_review_extraction IS NULL)
+            AND (last_review_extraction IS NULL 
+                 OR DATE_DIFF(CURRENT_DATE(), DATE(last_review_extraction), DAY) >= {margin_days_reviews})
             ORDER BY poi_id ASC
         """
         pois_pendientes = list(loader.execute_query(query_pendientes))
