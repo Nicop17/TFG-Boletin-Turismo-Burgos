@@ -3,6 +3,15 @@ import bigquery_loader as loader
 import review_transformer as transformer
 import apify_extractor as extractor
 
+def get_muni_level(population):
+    if not population or population < 400:
+        return 1 # Rural
+    elif population < 5000:
+        return 2 # Semi-urbano
+    else:
+        return 3 # Urbano
+    
+
 def run_scraper():
     today_dt = datetime.now()
     today_str = today_dt.strftime('%Y-%m-%d')
@@ -13,16 +22,15 @@ def run_scraper():
 
     # 1. Obtener municipios y categorías desde BigQuery
     # Filtramos municipios que no han sido procesados hoy ni en extracción general ni en extracción de reseñas
-    # query_muni = f"""
-    #     SELECT id_municipality, name, last_poi_update, last_review_extraction 
-    #     FROM `{loader.dataset}.municipalities`
-    #     WHERE last_poi_update IS NULL 
-    #        OR DATE_DIFF(CURRENT_DATE(), DATE(last_poi_update), DAY) >= {margin_days_poi}
-    #        OR last_review_extraction IS NULL
-    #        OR DATE_DIFF(CURRENT_DATE(), DATE(last_review_extraction), DAY) >= {margin_days_reviews}
-    #     ORDER BY id_municipality ASC
-    # """
-    query_muni = f"SELECT id_municipality, name, last_poi_update FROM `{loader.dataset}.municipalities` WHERE name = 'Abajas'"
+    query_muni = f"""
+        SELECT id_municipality, name, population, last_poi_update, last_review_extraction 
+        FROM `{loader.dataset}.municipalities`
+        WHERE last_poi_update IS NULL 
+           OR DATE_DIFF(CURRENT_DATE(), DATE(last_poi_update), DAY) >= {margin_days_poi}
+           OR last_review_extraction IS NULL
+           OR DATE_DIFF(CURRENT_DATE(), DATE(last_review_extraction), DAY) >= {margin_days_reviews}
+        ORDER BY id_municipality ASC
+    """
     municipalities = list(loader.execute_query(query_muni))
 
     cat_rows = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories`"))
@@ -50,7 +58,8 @@ def run_scraper():
                 """
                 done_categories = [r.category for r in loader.execute_query(query_log)]
                 
-                categories = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories` ORDER BY level_1_category ASC, level_2_category ASC, level_3_category ASC, level_4_category ASC, maps_category ASC"))
+                muni_level = get_muni_level(muni.population)
+                categories = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories` WHERE search_level <= {muni_level} ORDER BY level_1_category ASC, level_2_category ASC, level_3_category ASC, level_4_category ASC, maps_category ASC"))
 
                 for cat in categories: # Pois por categoría
                     # Comprobamos si esta categoría específica ya se buscó en este municipio
@@ -64,7 +73,7 @@ def run_scraper():
                         search_query = f"{cat.maps_category} en {subsite}, Burgos, Spain"
 
                     print(f" Buscando '{cat.maps_category}' en {subsite}...")
-                    pois_items = extractor.fetch_pois_from_apify(search_query)
+                    pois_items = extractor.fetch_pois_from_apify(search_query, muni.name, subsite if subsite.isdigit() else None)
                                    
                     pois_to_load = []
                     for poi in pois_items:
@@ -87,6 +96,7 @@ def run_scraper():
                             l1, l2, l3, l4 = taxonomy[google_cat]
                         else:
                             # Categoría nueva que se añade a la rama que estamos buscando ahora
+                            new_cat_level = muni_level
                             l1, l2, l3, l4 = (cat.level_1_category, cat.level_2_category, 
                                             cat.level_3_category, cat.level_4_category)
                             
@@ -94,8 +104,8 @@ def run_scraper():
                             print(f"Nueva categoría detectada: {google_cat}. Asignando a {l4}")
                             loader.execute_query(f"""
                                 INSERT INTO `{loader.dataset}.categories` 
-                                (level_1_category, level_2_category, level_3_category, level_4_category, maps_category)
-                                VALUES ('{l1}', '{l2}', '{l3}', '{l4}', '{google_cat}')
+                                (level_1_category, level_2_category, level_3_category, level_4_category, maps_category, search_level)
+                                VALUES ('{l1}', '{l2}', '{l3}', '{l4}', '{google_cat}', {new_cat_level})
                             """)
                             # Actualizamos el diccionario en memoria para no insertarla dos veces
                             taxonomy[google_cat] = (l1, l2, l3, l4)
@@ -126,7 +136,7 @@ def run_scraper():
                             "latitude": poi.get('location', {}).get('lat'),
                             "longitude": poi.get('location', {}).get('lng'),
                             "location": f"POINT({poi.get('location', {}).get('lng')} {poi.get('location', {}).get('lat')})",
-                            "price": poi.get('price'),
+                            "price": str(poi.get('price')) if poi.get('price') is not None else None,
                             "images_count": int(poi.get('imagesCount') or 0),
                             "google_official_tags": ", ".join([t.get('title') for t in poi.get('reviewsTags', [])]),
                             "related_pois": ", ".join([p.get('title') for p in poi.get('peopleAlsoSearch', [])]),
