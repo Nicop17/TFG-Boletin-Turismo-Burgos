@@ -5,14 +5,20 @@ from dotenv import load_dotenv
 load_dotenv()
 client_apify = ApifyClient(os.getenv("APIFY_TOKEN"))
 
-def fetch_pois_from_apify(search_query, muni_name, cp=None):
-    poi_input = {
-        "searchStringsArray": [search_query],
-        "locationQuery": f"{muni_name}, Burgos, Spain",
-        "postalCode": str(cp) if cp else None,
-        "language": "es",
-        "countryCode": "ES",
-    }
+def fetch_pois_from_apify(search_query, muni_name, muni_level):
+    if muni_level == 3:
+        poi_input = {
+            "searchStringsArray": [search_query],
+            "locationQuery": f"{muni_name}, Burgos, Spain", # Para mejorar la precisión de la búsqueda, se añade el municipio al query solo en el caso de municipios de nivel 3 (ciudades)
+            "language": "es",
+            "countryCode": "es", # Solo se pone aquí porque por sí solo hace una búsqueda exhaustiva por todo el país (como con locationQuery)
+        }
+    else:
+        poi_input = {
+            "searchStringsArray": [search_query],
+            "language": "es",
+        }
+    
     run = client_apify.actor("compass/crawler-google-places").call(run_input=poi_input)
     return list(client_apify.dataset(run["defaultDatasetId"]).iterate_items())
 

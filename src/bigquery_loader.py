@@ -25,6 +25,8 @@ def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fie
     for f in update_fields:
         if f == "location":
             update_clauses.append(f"T.{f} = ST_GEOGFROMTEXT(S.{f})")
+        elif f == "price":
+            update_clauses.append(f"T.{f} = CAST(S.{f} AS STRING)")
         else:
             update_clauses.append(f"T.{f} = S.{f}")
     update_query = ", ".join(update_clauses)
@@ -36,6 +38,8 @@ def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fie
     for f in all_fields:
         if f == "location":
             value_clauses.append(f"ST_GEOGFROMTEXT(S.{f})")
+        elif f == "price":
+            value_clauses.append(f"CAST(S.{f} AS STRING)")
         else:
             value_clauses.append(f"S.{f}")
     values = ", ".join(value_clauses)
