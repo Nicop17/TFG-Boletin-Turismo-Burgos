@@ -37,9 +37,8 @@ def run_scraper():
     """
     municipalities = list(loader.execute_query(query_muni))
 
-    cat_rows = list(loader.execute_query(f"SELECT * FROM `{loader.dataset}.categories`"))
-    taxonomy = {c.maps_category: (c.level_1_category, c.level_2_category, c.level_3_category, c.level_4_category) 
-                for c in cat_rows if c.maps_category}
+    cat_rows = list(loader.execute_query(f"SELECT maps_category, id_category FROM `{loader.dataset}.categories`"))
+    taxonomy = {c.maps_category: c.id_category for c in cat_rows if c.maps_category}
 
     for muni in municipalities:
         print(f"\n{'-'*30}\n MUNICIPIO: {muni.name}\n{'-'*30}")
@@ -94,23 +93,25 @@ def run_scraper():
             
                     if google_cat in taxonomy:
                         # Usamos la jerarquía que ya tenemos guardada para esa categoría oficial de Google
-                        l1, l2, l3, l4 = taxonomy[google_cat]
+                        current_cat_id = taxonomy[google_cat]
                     else:
                         # Categoría nueva que se añade a la rama que estamos buscando ahora
                         new_cat_level = muni_level
-                        l1, l2, l3, l4 = (cat.level_1_category, cat.level_2_category, 
-                                        cat.level_3_category, cat.level_4_category)
-                        
+                        res_max_id = list(loader.execute_query(f"SELECT MAX(id_category) as max_id FROM `{loader.dataset}.categories`"))
+                        current_cat_id = (res_max_id[0].max_id or 0) + 1
+
                         # La añadimos a la tabla de categorías para la próxima vez
-                        print(f"Nueva categoría detectada: {google_cat}. Asignando a {l4}")
+                        print(f"Nueva categoría detectada: {google_cat}. Asignando ID: {current_cat_id}")
+                        
                         loader.execute_query(f"""
                             INSERT INTO `{loader.dataset}.categories` 
-                            (level_1_category, level_2_category, level_3_category, level_4_category, maps_category, search_level)
-                            VALUES ('{l1}', '{l2}', '{l3}', '{l4}', '{google_cat}', {new_cat_level})
+                            (id_category, level_1_category, level_2_category, level_3_category, level_4_category, maps_category, search_level)
+                            VALUES ({current_cat_id}, '{cat.level_1_category}', '{cat.level_2_category}', 
+                                   '{cat.level_3_category}', '{cat.level_4_category}', '{google_cat}', {new_cat_level})
                         """)
                         # Actualizamos el diccionario en memoria para no insertarla dos veces
-                        taxonomy[google_cat] = (l1, l2, l3, l4)
-                            
+                        taxonomy[google_cat] = current_cat_id
+
                     additional_info = poi.get('additionalInfo', {})
                     accesibility_list = additional_info.get('Accessibility', [])
                     wheelchair = any(item.get('Wheelchair accessible entrance') for item in accesibility_list)
@@ -121,12 +122,12 @@ def run_scraper():
                     pois_to_load.append({
                         "poi_id": poi.get('placeId'),
                         "poi_name": poi.get('title'),
+                        "id_municipality": muni.id_municipality,
                         "poi_municipality": muni.name,
+                        "address": poi.get('address'),         
+                        "postal_code": poi.get('postalCode'),
+                        "id_category": taxonomy.get(google_cat),
                         "maps_category": google_cat,
-                        "level_1_category": l1,
-                        "level_2_category": l2,
-                        "level_3_category": l3,
-                        "level_4_category": l4,
                         "poi_total_rating": float(poi.get('totalScore') or 0) if poi.get('totalScore') else 0.0,
                         "reviews_count": int(poi.get('reviewsCount') or 0),
                         "reviews_dist_5star": int(dist.get('fiveStar') or 0),
