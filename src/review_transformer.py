@@ -17,17 +17,19 @@ def clean_translate_review(rev, p_id):
     fecha_relativa = rev.get('relativeDate') # Ej: "hace 2 horas"
     fecha_exacta = rev.get('publishedAtDate') # Ej: "2024-04-19T..."
 
+    word_count = len(text_raw.split())
+
     print(f"\n--- [DEBUG REVISIÓN] ---")
     print(f"Autor: {reviewer_name}")
     print(f"ID: {review_id}")
     print(f"Fecha: {fecha_exacta} ({fecha_relativa})")
     print(f"Texto detectado por Apify: '{text_raw}'")
-    print(f"Longitud palabras: {len(text_raw.split())}")
+    print(f"Longitud palabras: {word_count}")
 
 
     print(f"Analizando reseña {rev.get('reviewId')}: '")
-    if not text_raw or len(text_raw.split()) < 8:
-        print(f"DESCARTADA: Solo {len(text_raw.split())} palabras (mínimo 8).")
+    if not text_raw or word_count < 8:
+        print(f"DESCARTADA: Solo {word_count} palabras (mínimo 8).")
         return None # Filtro de longitud mínima (8 palabras)
 
     # Limpieza básica de saltos de línea
@@ -40,29 +42,40 @@ def clean_translate_review(rev, p_id):
     try:
         # Detectamos el idioma real del texto, ignorando lo que diga la API
         detected_lang = detect(text_clean)
-    except:
+    except Exception as e:
+        print(f"Error detectando idioma: {e}")
         detected_lang = 'es'
 
     # Traducción si no es español
     text_es = text_clean
     if detected_lang != 'es':
         try:
-            print(f"IDIOMA: {detected_lang} detectado. Traduciendo al español...")
+            print(f"IDIOMA: {detected_lang} detectado. Traduciendo al español")
             text_es = GoogleTranslator(source='auto', target='es').translate(text_clean)
-        except:
-            print(f"Error traduciendo reseña {rev.get('reviewId')}")
+        except Exception as e:
+            print(f"Error traduciendo reseña {rev.get('reviewId')} en {detected_lang}: {e}. Usando original")
             text_es = text_clean
 
     # GÉNERO
-    first_name = rev.get('name', '').split()[0]
-    gender_raw = gender_detector.get_gender(first_name)
-    reviewer_gender = "Masculino" if "male" in gender_raw else "Femenino" if "female" in gender_raw else "Desconocido"
-    
+    try:
+        name_parts = reviewer_name.split()
+        first_name = name_parts[0] if name_parts else "Anonimo"
+        gender_raw = gender_detector.get_gender(first_name)
+        reviewer_gender = "Masculino" if "male" in gender_raw else "Femenino" if "female" in gender_raw else "Desconocido"
+    except Exception as e:
+        print(f"Error detectando género para {reviewer_name}: {e}")
+        reviewer_gender = "Desconocido"
+
     # SENTIMIENTO
-    sent = sentiment_analyzer.predict(text_es)
-    sentiment_label = sent.output # Positivo (POS), Neutral (NEU), Negativo (NEG)
-    sentiment_score = float(sent.probas["POS"] - sent.probas["NEG"]) # Puntuación del sentimiento [-1, 1]
-    
+    try:
+        sent = sentiment_analyzer.predict(text_es)
+        sentiment_label = sent.output # Positivo (POS), Neutral (NEU), Negativo (NEG)
+        sentiment_score = float(sent.probas["POS"] - sent.probas["NEG"]) # Puntuación del sentimiento [-1, 1]
+    except Exception as e:
+        print(f"Error en cálculo de sentimiento para {review_id}: {e}")
+        sentiment_label = "NEU"
+        sentiment_score = 0.0
+
     return {
         "review_id": rev.get('reviewId'),
         "poi_id": p_id,
