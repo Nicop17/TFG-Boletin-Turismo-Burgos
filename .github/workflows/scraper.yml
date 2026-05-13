@@ -1,11 +1,16 @@
 name: Run Burgos Scraper
 
 on:
-  workflow_dispatch: # Permite lanzarlo a mano para probar
+  workflow_dispatch: # Permite lanzarlo a mano
   # schedule:
-    # - cron: '0 3 1 * *' # Se ejecuta el día 1 de cada mes a las 03:00 
-    # Comentado hoy para que no ejecute
+    # - cron: '0 3 * * *' # Se ejecuta todos los días a las 03:00 (hora UTC). 
+    # Si alguna vez falla o se corta antes de terminar, volverá a ejecutarse automáticamente al día siguiente, 
+    # lo que es útil para asegurar que el scraper se ejecute regularmente sin intervención manual.
+    # No supone un gasto extra ya que si ha funcionado, todos los elementos estarán ya procesados y se cerrará.
 
+  schedule:
+    # 0 (minuto) 19 (hora UTC = 21:00 España) 13 (día) 5 (mes) * (cualquier día de la semana)
+    - cron: '0 19 13 5 *' # Prueba ejecución automática hoy a las 21:00 (hora local, UTC+2).
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -18,6 +23,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
@@ -26,9 +32,10 @@ jobs:
 
     - name: Setup Google Cloud Key
       run: |
-        echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > key.json
+        echo "${{ secrets.GCP_SA_KEY }}"  > key.json
 
     - name: Run Scraper
       env:
         APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-      run: python src/scraper_burgos.py
+        GOOGLE_APPLICATION_CREDENTIALS: ./key.json
+      run: python src/main_scraper_pipeline.py

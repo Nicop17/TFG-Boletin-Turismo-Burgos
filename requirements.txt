@@ -1,20 +1,20 @@
 # Comando para instalar: pip install -r requirements.txt
 
 # --- Extracción y APIs ---
-apify_client
-requests
-httpx
+apify_client==2.5.0
+
 
 # --- Google Cloud & BigQuery ---
-google-cloud-bigquery
-google-auth
-python-dotenv
-
-# --- Procesamiento de Datos ---
-pandas
-numpy>=2.1.0
+google-cloud-bigquery==3.18.0
+google-auth==2.23.4
+python-dotenv==1.0.0
 
 # --- Procesamiento de Texto ---
-deep_translator
-langdetect
-gender-guesser
+deep-translator==1.11.4
+langdetect==1.0.9
+gender-guesser==0.4.0
+pysentimiento==0.7.3
+
+# --- Infraestructura ---
+scikit-learn==1.5.0
+
