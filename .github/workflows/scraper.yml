@@ -9,8 +9,8 @@ on:
     # No supone un gasto extra ya que si ha funcionado, todos los elementos estarán ya procesados y se cerrará.
 
   schedule:
-    # 0 (minuto) 19 (hora UTC = 21:00 España) 13 (día) 5 (mes) * (cualquier día de la semana)
-    - cron: '0 19 13 5 *' # Prueba ejecución automática hoy a las 21:00 (hora local, UTC+2).
+    # 30 (minuto) 5 (hora UTC = 07:30 España) 14 (día) 5 (mes) * (cualquier día de la semana)
+    - cron: '30 5 14 5 *' # Prueba ejecución automática hoy a las 21:00 (hora local, UTC+2).
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
 
     - name: Setup Google Cloud Key
       run: |
-        echo "${{ secrets.GCP_SA_KEY }}"  > key.json
+        echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > key.json
 
     - name: Run Scraper
       env:
