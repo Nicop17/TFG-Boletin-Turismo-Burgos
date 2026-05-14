@@ -3,24 +3,21 @@ name: Run Burgos Scraper
 on:
   workflow_dispatch: # Permite lanzarlo a mano
   # schedule:
-    # - cron: '0 3 * * *' # Se ejecuta todos los días a las 03:00 (hora UTC). 
+    #   - cron: '0 3 * * *' # Se ejecuta todos los días a las 03:00 (hora UTC). 
     # Si alguna vez falla o se corta antes de terminar, volverá a ejecutarse automáticamente al día siguiente, 
     # lo que es útil para asegurar que el scraper se ejecute regularmente sin intervención manual.
     # No supone un gasto extra ya que si ha funcionado, todos los elementos estarán ya procesados y se cerrará.
 
-  schedule:
-    # 30 (minuto) 5 (hora UTC = 07:30 España) 14 (día) 5 (mes) * (cualquier día de la semana)
-    - cron: '30 5 14 5 *' # Prueba ejecución automática hoy a las 21:00 (hora local, UTC+2).
 jobs:
   scrape:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.13'
         cache: 'pip'
