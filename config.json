@@ -1,0 +1,54 @@
+{
+  "google_cloud": {
+    "credentials_file": "key.json",
+    "project_id": "tfg-boletin-turismo-burgos",
+    "dataset_id": "ds_turismo_reviews",
+    "tables": {
+      "municipalities": "municipalities",
+      "categories": "categories",
+      "pois": "pois",
+      "reviews": "reviews",
+      "scraper_control": "scraper_control"
+    }
+  },
+  "tori_logic": {
+    "max_score_rating": 5,
+    "max_score_sentiment": 5
+  },
+  "scraper_logic": {
+    "margin_days_update_pois": 120,
+    "margin_days_update_reviews": 60,
+    "postal_code_prefix": "09",
+    "location_province": "Burgos, Spain",
+    "muni_threshold_rural": 400,
+    "muni_threshold_semi_rural": 5000
+  },
+  "execution_filters": {
+    "target_municipality": "",
+    "target_category": "",
+    "target_poi": "",
+    "order_municipalities_by": "population ASC",
+    "order_categories_by": "level_1_category ASC, level_2_category ASC, level_3_category ASC, level_4_category ASC, maps_category ASC",
+    "order_pois_by": "poi_id ASC"
+  },
+  "apify_params": {
+    "poi_actor": "compass/crawler-google-places",
+    "reviews_actor": "compass/google-maps-reviews-scraper",
+    "max_retries": 2,
+    "retry_wait_seconds": 5,
+    "language": "es",
+    "country_code": "es",
+    "location_province": "Burgos, Spain",
+    "reviews_start_date": "1 month",
+    "reviews_personal_data": true,
+    "reviews_sort": "newest",
+    "reviews_origin": "google"
+  },
+  "transformer_params": {
+    "min_review_words": 8,
+    "target_lang": "es",
+    "default_user_name": "Anónimo",
+    "default_user_gender": "Desconocido",
+    "default_review_lang": "Desconocido"
+  }
+}

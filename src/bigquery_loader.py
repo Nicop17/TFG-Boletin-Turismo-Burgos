@@ -5,6 +5,7 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 from google.api_core import exceptions
 from dotenv import load_dotenv
+from utils.config_loader import settings
 
 
 # Configuración de acceso a Google BigQuery
@@ -12,18 +13,19 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.join(base_dir, "..")
 
 load_dotenv(os.path.join(root_dir, ".env"))
+g_config = settings['google_cloud']
 
 try:
-    with open(os.path.join(root_dir, "key.json")) as f:
+    with open(os.path.join(root_dir, g_config['credentials_file'])) as f:
         info = json.loads(f.read())
-    
+        
     credentials = service_account.Credentials.from_service_account_info(info)
-    client_bq = bigquery.Client(credentials=credentials, project=info['project_id'])
-    dataset = "tfg-boletin-turismo-burgos.ds_turismo_reviews"
+    client_bq = bigquery.Client(credentials=credentials, project=g_config['project_id'])
+    dataset_path = f"{g_config['project_id']}.{g_config['dataset_id']}"
     print("Conexión con BigQuery establecida correctamente.")
     
 except FileNotFoundError:
-    print("ERROR: No se encontró el archivo key.json.")
+    print("ERROR: No se encontró el archivo {g_config['credentials_file']}.")
     sys.exit(1)
 except Exception as e:
     print(f"ERROR CRÍTICO: No se pudo conectar con BigQuery. Revisa credenciales: {e}")
@@ -84,8 +86,9 @@ def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fie
 
 def get_last_stored_review_id(poi_id):
     """Obtiene el ID de la reseña más reciente de un POI en BigQuery para evitar duplicados."""
+    table_reviews = g_config['tables']['reviews']
     query = f"""
-        SELECT review_id FROM `{dataset}.reviews`
+        SELECT review_id FROM `{dataset_path}.{table_reviews}`
         WHERE poi_id = '{poi_id}'
         ORDER BY review_date DESC, extraction_timestamp DESC
         LIMIT 1
@@ -103,12 +106,18 @@ def update_poi_tori(p_id):
     """Calcula la media de sentimientos y actualiza el TORI en la tabla pois."""   
     # 1. Busca la nota media de Google (poi_total_rating)
     # 2. Calcula la media de todos los sentiment_score de ese poi
-    # 3. Calcula el TORI
+    # 3. Calcula el TORI normalizando ambos valores a una escala de 0 a 5
+
+    t_logic = settings['tori_logic']
+    # Escalamiento: Rating (1-5 -> amplitud 4), Sentimiento (-1 a 1 -> amplitud 2)
+    krating = t_logic['max_score_rating'] / 4 
+    ksentiment = t_logic['max_score_sentiment'] / 2
+
     query = f"""
-    UPDATE `{dataset}.pois`
-    SET tori_score = (1.25 * (poi_total_rating - 1)) + (2.5 * (
+    UPDATE `{dataset_path}.{g_config['tables']['pois']}`
+    SET tori_score = ({krating} * (poi_total_rating - 1)) + ({ksentiment} * (
         SELECT COALESCE(AVG(sentiment_score), 0) + 1 
-        FROM `{dataset}.reviews` 
+        FROM `{dataset_path}.{g_config['tables']['reviews']}` 
         WHERE poi_id = '{p_id}'
     ))
     WHERE poi_id = '{p_id}'
