@@ -3,6 +3,7 @@ import bigquery_loader as loader
 import review_transformer as transformer
 import apify_extractor as extractor
 from utils.config_loader import settings
+from utils.logger import logger
 
 s_logic = settings['scraper_logic']
 g_tables = settings['google_cloud']['tables']
@@ -23,7 +24,8 @@ def run_scraper():
     today_str = today_dt.strftime('%Y-%m-%d')
     margin_days_poi = s_logic['margin_days_update_pois'] # Número de días para considerar un POI como no actualizado y volver a extraerlo
     margin_days_reviews = s_logic['margin_days_update_reviews'] # Número de días para considerar las reseñas de un POI como no actualizadas y volver a extraerlas
-    print(f"Iniciando scraper - Ejecución del {today_str} - POIs no actualizados desde hace {margin_days_poi} días o más serán procesados.")
+    logger.info(f"Iniciando scraper - Ejecución del {today_str}")
+    logger.info(f"POIs no actualizados desde hace {margin_days_poi} días o más serán procesados.")
 
 
     # Obtener municipios y categorías desde BigQuery
@@ -50,24 +52,24 @@ def run_scraper():
         municipalities = list(loader.execute_query(query_muni))
         
         if not municipalities:
-            print("No se encontraron municipios pendientes de procesar. Finalizando extracción de reseñas.")
+            logger.warning("No se encontraron municipios pendientes de procesar. Finalizando extracción de reseñas.")
             return
 
-        print("Cargando taxonomía de categorías desde BigQuery")
+        logger.info("Cargando taxonomía de categorías desde BigQuery")
         cat_rows = list(loader.execute_query(f"SELECT maps_category, id_category FROM `{dataset_path}.{g_tables['categories']}`"))
         
         if not cat_rows: # Si no hay categorías, el mapeo de IDs fallará más tarde
             raise Exception("La tabla de categorías está vacía o no es accesible.")
             
         taxonomy = {c.maps_category: c.id_category for c in cat_rows if c.maps_category}
-        print(f"Taxonomía cargada: {len(taxonomy)} categorías detectadas.")
+        logger.info(f"Taxonomía cargada: {len(taxonomy)} categorías detectadas.")
 
     except Exception as e: # Si falla aquí no se puede continuar porque no tenemos ni municipios para procesar ni taxonomía para categorizar los POIs
-        print(f"Error crítico en la configuración inicial: {e}")
+        logger.exception(f"Error crítico en la configuración inicial:")
         return 
 
     for muni in municipalities:
-        print(f"\n{'-'*30}\n MUNICIPIO: {muni.name}\n{'-'*30}")
+        logger.info(f"\n{'-'*30}\n MUNICIPIO: {muni.name}\n{'-'*30}")
        
         # FASE A: Descubrimiento de POIs
         # Solo entramos si no se ha actualizado el catálogo de POIs del municipio en los últimos margin_days_poi días
@@ -104,12 +106,13 @@ def run_scraper():
             for cat in categories: # Pois por categoría
                 # Comprobamos si esta categoría específica ya se buscó en este municipio
                 if cat.maps_category in done_categories:
+                    logger.debug(f"Categoría '{cat.maps_category}' ya buscada en {muni.name} recientemente. Saltando.")
                     continue
 
                 try:
                     search_query = f"{cat.maps_category} en {muni.name}, {s_logic['location_province']}"
 
-                    print(f" Buscando '{cat.maps_category}' en {muni.name}...")
+                    logger.info(f" Buscando '{cat.maps_category}' en {muni.name}")
                     pois_items = extractor.fetch_pois_from_apify(search_query, muni.name, muni_level)
                                     
                     pois_to_load = []
@@ -132,7 +135,7 @@ def run_scraper():
                                 current_cat_id = (res_max_id[0].max_id or 0) + 1
 
                                 # La añadimos a la tabla de categorías para la próxima vez
-                                print(f"Nueva categoría detectada: {google_cat}. Asignando ID: {current_cat_id}")
+                                logger.info(f"Nueva categoría detectada: {google_cat}. Asignando ID: {current_cat_id}")
                                 
                                 loader.execute_query(f"""
                                     INSERT INTO `{dataset_path}.{g_tables['categories']}` 
@@ -144,7 +147,7 @@ def run_scraper():
                                 taxonomy[google_cat] = current_cat_id
 
                             except Exception as e_cat:
-                                print(f"Error insertando nueva categoría {google_cat}: {e_cat}")
+                                logger.error(f"Error insertando nueva categoría {google_cat}: {e_cat}")
                                 continue # No podemos cargar el POI sin categoría válida
 
                         additional_info = poi.get('additionalInfo', {})
@@ -193,9 +196,9 @@ def run_scraper():
                                     "temporarily_closed", "permanently_closed", "google_official_tags", "related_pois", 
                                     "wheelchair_accessible", "child_friendly", "claim_business","last_poi_update"]
                         loader.run_merge_query(f"{dataset_path}.{g_tables['pois']}", stg_poi, "poi_id", poi_updates, list(pois_to_load[0].keys()))
-                        print(f"{len(pois_to_load)} POIs actualizados en {muni.name}")
+                        logger.info(f"{len(pois_to_load)} POIs actualizados en {muni.name}")
                     else:
-                        print(f"No se encontraron nuevos POIs para {cat.maps_category} en {muni.name}.")
+                        logger.info(f"No se encontraron nuevos POIs para {cat.maps_category} en {muni.name}.")
 
                     loader.execute_query(f"""
                         INSERT INTO `{dataset_path}.{g_tables['scraper_control']}` (municipality_name, category, last_update)
@@ -203,17 +206,19 @@ def run_scraper():
                     """)
 
                 except Exception as e:# Si falla Apify o el Merge de BigQuery, lo capturamos para no romper el bucle y seguir con las siguientes categorías
-                    print(f"Error procesando categoría '{cat.maps_category}' en {muni.name}: {e}")
+                    logger.error(f"Error procesando categoría '{cat.maps_category}' en {muni.name}: {e}")
                     continue # No ejecutamos el INSERT en scraper_control, así que queda pendiente para el futuro
             
             # Si no se ha pedido una única categoría oun único POi marcamos municipio como procesado hoy en extracción de POIs
             if filters['target_category'] == "":
                 loader.execute_query(f"UPDATE `{dataset_path}.{g_tables['municipalities']}` SET last_poi_update = CURRENT_TIMESTAMP() WHERE name = '{muni.name}'")
 
+            logger.info(f"Fase A (POIs) completada con éxito para {muni.name}.")
+
         elif (filters['target_poi'] != ""):
-            print(f"Fase A (POIs) no requerida en el flujo actual para {muni.name}. Saltando a reseñas para el poi {filters['target_poi']}.")
+            logger.debug(f"Fase A (POIs) no requerida en el flujo actual para {muni.name}. Saltando a reseñas para el poi {filters['target_poi']}.")
         else:
-            print(f"Fase A (POIs) ya completada para {muni.name} recientemente. Saltando a reseñas.")
+            logger.debug(f"Fase A (POIs) ya completada para {muni.name} recientemente. Saltando a reseñas.")
 
       
         # FASE B: EXTRAER RESEÑAS POI A POI
@@ -237,7 +242,7 @@ def run_scraper():
         pois = list(loader.execute_query(query_pois))
 
         if not pois:
-            print(f"No se encontraron POIs pendientes de procesar. Finalizando extracción de reseñas del municipio {muni.name}.")
+            logger.info(f"No se encontraron POIs pendientes de procesar. Finalizando extracción de reseñas del municipio {muni.name}.")
             continue
         
         for poi in pois:
@@ -245,7 +250,7 @@ def run_scraper():
                 poi_can_extract_reviews = poi.last_review_extraction is None or (today_dt.date() - poi.last_review_extraction.date()).days >= margin_days_reviews
                 if poi_can_extract_reviews:
 
-                    print(f" Sacando reseñas para: {poi.poi_name}...")
+                    logger.info(f" Sacando reseñas para: {poi.poi_name}")
                     last_id_in_db = loader.get_last_stored_review_id(poi.poi_id)
                     reviews_items = extractor.fetch_reviews_from_apify(poi.poi_id)
 
@@ -255,7 +260,7 @@ def run_scraper():
                         if res:
                             # Si la reseña del POI ya la tenemos guardada, paramos este POI porque las reseñas vienen ordenadas de más nuevas a más antiguas, por lo tanto las siguientes también las tendremos guardadas
                             if res['review_id'] == last_id_in_db:
-                                print(f"Coincidencia hallada en base de datos. Parando POI.")
+                                logger.info(f"Coincidencia de ID hallada en la base de datos para {poi.poi_name}. Parando extracción de este POI.")
                                 break
                             reviews_to_load.append(res)
 
@@ -264,28 +269,29 @@ def run_scraper():
                         loader.client_bq.load_table_from_json(reviews_to_load, stg_rev).result()
                         loader.run_merge_query(f"{dataset_path}.{g_tables['reviews']}", stg_rev, "review_id", ["extraction_timestamp"], list(reviews_to_load[0].keys()))
                         loader.update_poi_tori(poi.poi_id) # Actualizamos el TORI de ese POI tras cargar sus reseñas
-                        print(f"{len(reviews_to_load)} Nuevas reseñas añadidas.")
+                        logger.info(f"{len(reviews_to_load)} Nuevas reseñas añadidas.")
                     else:
-                        print(f"No se encontraron reseñas nuevas para este POI.")
+                        logger.info(f"No se encontraron reseñas nuevas nuevas para el POI: {poi.poi_name}.")
                     # Marcamos el POI como procesado hoy
                     loader.execute_query(f"UPDATE `{dataset_path}.{g_tables['pois']}` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE poi_id = '{poi.poi_id}'")
                 else:
-                    print(f"Fase B (Reviews) ya completada para {poi.poi_name} recientemente. Saltando al siguiente POI.")
+                    logger.debug(f"Fase B (Reviews) ya completada para {poi.poi_name} recientemente. Saltando al siguiente POI.")
 
             except Exception as e:
-                print(f"Error procesando reseñas para el POI {poi.poi_name}: {e}")
+                logger.exception(f"Error procesando reseñas para el POI {poi.poi_name}:")
                 continue # Saltamos al siguiente POI
         
         # Marcamos municipio como procesado hoy en extracción de reseñas si no se ha pedido un POI concreto
         
         if filters['target_poi'] == "":
             loader.execute_query(f"UPDATE `{dataset_path}.{g_tables['municipalities']}` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE name = '{muni.name}'")
-            print(f"Municipio {muni.name} completado.")
+            logger.info(f"Municipio {muni.name} completado.")
         elif filters['target_municipality'] == "":
-            print(f"Fase B (Reviews) completada para el poi {filters['target_poi']} en {muni.name}. Saltando al siguiente municipio.")
+            logger.info(f"Fase B (Reviews) completada para el poi {filters['target_poi']} en {muni.name}. Saltando al siguiente municipio.")
         else:
-            print(f"Fase B (Reviews) completada para el poi {filters['target_poi']} en {muni.name}.")
-    print(f"\n{'='*30}\nEJECUCIÓN COMPLETADA\n{'='*30}\n")
+            logger.info(f"Fase B (Reviews) completada para el poi {filters['target_poi']} en {muni.name}.")
+    
+    logger.info(f"\n{'='*30}\nEJECUCIÓN DEL SCRAPER COMPLETADA\n{'='*30}\n")
 
 if __name__ == "__main__":
     run_scraper()

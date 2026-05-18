@@ -4,6 +4,7 @@ from langdetect import detect
 from pysentimiento import create_analyzer
 import gender_guesser.detector as gender
 from utils.config_loader import settings
+from utils.logger import logger
 
 t_params = settings['transformer_params']
 TARGET_LANG = t_params['target_lang']
@@ -22,18 +23,18 @@ def clean_translate_review(rev, p_id):
 
     word_count = len(text_raw.split())
 
-    print(f"\n--- [DEBUG REVISIÓN] ---")
-    print(f"Autor: {reviewer_name}")
-    print(f"ID: {review_id}")
-    print(f"Fecha: {fecha_exacta} ({fecha_relativa})")
-    print(f"Texto detectado por Apify: '{text_raw}'")
-    print(f"Longitud palabras: {word_count}")
+    logger.debug(f"\n--- [DEBUG REVISIÓN] ---")
+    logger.debug(f"Autor: {reviewer_name}")
+    logger.debug(f"ID: {review_id}")
+    logger.debug(f"Fecha: {fecha_exacta} ({fecha_relativa})")
+    logger.debug(f"Texto detectado por Apify: '{text_raw}'")
+    logger.debug(f"Longitud palabras: {word_count}")
 
 
-    print(f"Analizando reseña {rev.get('reviewId')}: '")
+    logger.info(f"Analizando reseña {rev.get('reviewId')}: '")
 
     if not text_raw or word_count < t_params['min_review_words']:
-        print(f"DESCARTADA: Solo {word_count} palabras (mínimo {t_params['min_review_words']}).")
+        logger.info(f"Reseña {review_id} descartada: Solo {word_count} palabras (mínimo {t_params['min_review_words']}).")
         return None # Filtro de longitud mínima del texto de la reseña para que se guarde
 
     # Limpieza básica de saltos de línea
@@ -47,17 +48,17 @@ def clean_translate_review(rev, p_id):
         # Detectamos el idioma real del texto, ignorando lo que diga la API
         detected_lang = detect(text_clean)
     except Exception as e:
-        print(f"Error detectando idioma: {e}")
+        logger.error(f"Error detectando idioma en la reseña {review_id}: {e}")
         detected_lang = t_params['default_review_lang'] # Valor por defecto si no se puede detectar
 
     # Traducción si no es español
     text_es = text_clean
     if detected_lang != TARGET_LANG:
         try:
-            print(f"IDIOMA: {detected_lang} detectado. Traduciendo al {TARGET_LANG}")
+            logger.info(f"IDIOMA: {detected_lang} detectado en reseña {review_id}. Traduciendo al {TARGET_LANG}")
             text_es = GoogleTranslator(source='auto', target=TARGET_LANG).translate(text_clean)
         except Exception as e:
-            print(f"Error traduciendo reseña {rev.get('reviewId')} en {detected_lang}: {e}. Usando original")
+            logger.error(f"Error traduciendo reseña {review_id} en {detected_lang}: {e}. Usando original")
             text_es = text_clean
 
     # GÉNERO
@@ -67,7 +68,7 @@ def clean_translate_review(rev, p_id):
         gender_raw = gender_detector.get_gender(first_name)
         reviewer_gender = "Masculino" if "male" in gender_raw else "Femenino" if "female" in gender_raw else t_params['default_user_gender']
     except Exception as e:
-        print(f"Error detectando género para {reviewer_name}: {e}")
+        logger.error(f"Error detectando género de {reviewer_name}: {e}")
         reviewer_gender = t_params['default_user_gender']
 
     # SENTIMIENTO
@@ -76,7 +77,7 @@ def clean_translate_review(rev, p_id):
         sentiment_label = sent.output # Positivo (POS), Neutral (NEU), Negativo (NEG)
         sentiment_score = float(sent.probas["POS"] - sent.probas["NEG"]) # Puntuación del sentimiento [-1, 1]
     except Exception as e:
-        print(f"Error en cálculo de sentimiento para {review_id}: {e}")
+        logger.error(f"Error en cálculo de sentimiento para reseña {review_id}: {e}")
         sentiment_label = "NEU"
         sentiment_score = 0.0
 

@@ -50,5 +50,11 @@
     "default_user_name": "Anónimo",
     "default_user_gender": "Desconocido",
     "default_review_lang": "Desconocido"
+  },
+  "logging_params": {
+    "log_level": "INFO",
+    "log_to_file": true,
+    "log_file_name": "scraper_execution.log",
+    "log_format": "%(asctime)s [%(levelname)s] (%(filename)s:%(lineno)d) - %(message)s"
   }
 }

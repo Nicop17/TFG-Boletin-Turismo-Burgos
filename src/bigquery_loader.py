@@ -6,7 +6,7 @@ from google.oauth2 import service_account
 from google.api_core import exceptions
 from dotenv import load_dotenv
 from utils.config_loader import settings
-
+from utils.logger import logger
 
 # Configuración de acceso a Google BigQuery
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,13 +22,13 @@ try:
     credentials = service_account.Credentials.from_service_account_info(info)
     client_bq = bigquery.Client(credentials=credentials, project=g_config['project_id'])
     dataset_path = f"{g_config['project_id']}.{g_config['dataset_id']}"
-    print("Conexión con BigQuery establecida correctamente.")
+    logger.info("Conexión con BigQuery establecida correctamente.")
     
 except FileNotFoundError:
-    print("ERROR: No se encontró el archivo {g_config['credentials_file']}.")
+    logger.critical(f"No se encontró el archivo de credenciales: {g_config['credentials_file']}.")
     sys.exit(1)
 except Exception as e:
-    print(f"ERROR CRÍTICO: No se pudo conectar con BigQuery. Revisa credenciales: {e}")
+    logger.critical(f"No se pudo conectar con BigQuery. Revisa credenciales: {e}")
     sys.exit(1)
 
 
@@ -72,16 +72,17 @@ def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fie
     """
     try:
         client_bq.query(sql).result()
+        logger.debug("MERGE ejecutado con éxito.")
     except exceptions.BadRequest as e:
-        print(f"Error de formato en el MERGE (400). Revisar tipos: {e}")
+        logger.error(f"Error de formato en el MERGE (400). Revisar tipos: {e}")
     except Exception as e:
-        print(f"Error inesperado en el MERGE: {e}")
+        logger.exception(f"Error inesperado en la ejecución del MERGE para {table_id}:")
     finally:
         # Aseguramos que la tabla de staging se elimine incluso si el MERGE falla, para evitar acumulación de tablas temporales.
         try:
             client_bq.delete_table(staging_table_id)
         except Exception as e:
-            print(f"No se pudo borrar la tabla temporal {staging_table_id}: {e}")
+            logger.warning(f"No se pudo borrar la tabla temporal {staging_table_id}: {e}")
 
 
 def get_last_stored_review_id(poi_id):
@@ -97,9 +98,10 @@ def get_last_stored_review_id(poi_id):
         results = list(client_bq.query(query).result())
         return results[0].review_id if results else None
     except exceptions.NotFound:
+        logger.debug(f"La tabla {table_reviews} no existe o está vacía.")
         return None # Caso normal: tabla vacía
     except Exception as e:
-        print(f"No se pudo obtener el último review_id para {poi_id}: {e}")
+        logger.error(f"No se pudo obtener el último review_id para {poi_id}: {e}")
         return None
 
 def update_poi_tori(p_id):
@@ -125,9 +127,9 @@ def update_poi_tori(p_id):
     
     try:
         client_bq.query(query).result()
-        print(f"TORI actualizado para el POI: {p_id}")
+        logger.info(f"TORI actualizado para el POI: {p_id}")
     except Exception as e:
-        print(f"Error actualizando TORI de {p_id}: {e}")
+        logger.error(f"Error actualizando TORI de {p_id}: {e}")
 
 
 def execute_query(query):
@@ -135,8 +137,8 @@ def execute_query(query):
     try:
         return client_bq.query(query).result()
     except exceptions.NotFound:
-        print("Error: Tabla o dataset no encontrado.")
+        logger.error("Error: Tabla o dataset no encontrado en BigQuery.")
         return []
     except Exception as e:
-        print(f"Error al ejecutar consulta SQL: {e}")
+        logger.error(f"Error al ejecutar consulta SQL en BigQuery: {e}")
         return [] # Devolvemos lista vacía para que los bucles for no fallen al iterar sobre resultados inexistentes

@@ -3,6 +3,7 @@ import os
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 from utils.config_loader import settings
+from utils.logger import logger
 
 load_dotenv()
 client_apify = ApifyClient(os.getenv("APIFY_TOKEN"))
@@ -24,15 +25,20 @@ def fetch_pois_from_apify(search_query, muni_name, muni_level):
     
     attempt = 0
     MAX_RETRIES = a_params['max_retries']
+    logger.info(f"Solicitando extracción de POIs a Apify para la consulta: '{search_query}'")
+    
     while attempt <= MAX_RETRIES:
         try:
             # Llamada al actor
             run = client_apify.actor(a_params['poi_actor']).call(run_input=poi_input)
-            return list(client_apify.dataset(run["defaultDatasetId"]).iterate_items())
+            items = list(client_apify.dataset(run["defaultDatasetId"]).iterate_items())
+            
+            logger.info(f"Extracción exitosa de POIs para '{search_query}'. Elementos recuperados: {len(items)}")
+            return items
         
         except Exception as e:
             attempt += 1
-            print(f"Intento {attempt}/{MAX_RETRIES + 1} fallido al extraer POIs ({search_query}): {e}")
+            logger.warning(f"Intento {attempt}/{MAX_RETRIES + 1} fallido al extraer POIs ({search_query}): {e}")
             if attempt <= MAX_RETRIES:
                 time.sleep(a_params['retry_wait_seconds']) # Esperamos 5 segundos antes de reintentar
             else:
@@ -50,14 +56,19 @@ def fetch_reviews_from_apify(p_id):
 
     attempt = 0
     MAX_RETRIES = a_params['max_retries']
+    logger.info(f"Solicitando extracción de reseñas a Apify para el POI ID: {p_id}")
+
     while attempt <= MAX_RETRIES:
         try:
             run = client_apify.actor(a_params['reviews_actor']).call(run_input=rev_input)
-            return list(client_apify.dataset(run["defaultDatasetId"]).iterate_items())
+            items = list(client_apify.dataset(run["defaultDatasetId"]).iterate_items())
+            
+            logger.info(f"Extracción exitosa de reseñas para el POI {p_id}. Reseñas obtenidas: {len(items)}")
+            return items
         
         except Exception as e:
             attempt += 1
-            print(f"Intento {attempt}/{MAX_RETRIES + 1} fallido al extraer reseñas para POI {p_id}: {e}")
+            logger.warning(f"Intento {attempt}/{MAX_RETRIES + 1} fallido al extraer reseñas para POI {p_id}: {e}")
             if attempt <= MAX_RETRIES:
                 time.sleep(a_params['retry_wait_seconds'])
             else:
