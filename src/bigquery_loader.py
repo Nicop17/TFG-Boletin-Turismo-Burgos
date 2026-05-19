@@ -35,7 +35,7 @@ except Exception as e:
 def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fields):
     """Ejecuta un MERGE en BigQuery para automatizar el Upsert."""
     # Campos que siempre deben ser tratados como STRING 
-    string_fields = ["review_id", "poi_id", "reviewer_id", "price"]
+    string_fields = ["review_id", "poi_id", "reviewer_id", "price", "postal_code"]
 
     # Generar la parte del UPDATE
     update_clauses = []
@@ -75,8 +75,10 @@ def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fie
         logger.debug("MERGE ejecutado con éxito.")
     except exceptions.BadRequest as e:
         logger.error(f"Error de formato en el MERGE (400). Revisar tipos: {e}")
+        raise e
     except Exception as e:
         logger.exception(f"Error inesperado en la ejecución del MERGE para {table_id}:")
+        raise e
     finally:
         # Aseguramos que la tabla de staging se elimine incluso si el MERGE falla, para evitar acumulación de tablas temporales.
         try:

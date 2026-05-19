@@ -1,6 +1,10 @@
 import logging
 import sys
+import os
 from utils.config_loader import settings
+
+base_dir = os.path.dirname(os.path.abspath(__file__)) 
+root_dir = os.path.abspath(os.path.join(base_dir, "..", ".."))
 
 # Extraemos los parámetros del JSON
 log_params = settings.get('logging_params', {
@@ -28,7 +32,9 @@ if not logger.handlers:
 
     # Handler 2: Archivo físico (Para guardar históricos y auditoría de errores)
     if log_params.get('log_to_file'):
+        # Guardamos el log en la raíz del proyecto
+        complete_path_log = os.path.join(root_dir, log_params['log_file_name'])
         # Usamos encoding utf-8 porque las reseñas tienen tildes y emojis que harían explotar el logger por defecto en Windows
-        file_handler = logging.FileHandler(log_params['log_file_name'], encoding='utf-8')
+        file_handler = logging.FileHandler(complete_path_log, encoding='utf-8')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)

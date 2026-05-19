@@ -196,7 +196,7 @@ def run_scraper():
                                     "temporarily_closed", "permanently_closed", "google_official_tags", "related_pois", 
                                     "wheelchair_accessible", "child_friendly", "claim_business","last_poi_update"]
                         loader.run_merge_query(f"{dataset_path}.{g_tables['pois']}", stg_poi, "poi_id", poi_updates, list(pois_to_load[0].keys()))
-                        logger.info(f"{len(pois_to_load)} POIs actualizados en {muni.name}")
+                        logger.info(f"{len(pois_to_load)} POIs actualizados para la categoría '{cat.maps_category}' en {muni.name}")
                     else:
                         logger.info(f"No se encontraron nuevos POIs para {cat.maps_category} en {muni.name}.")
 
