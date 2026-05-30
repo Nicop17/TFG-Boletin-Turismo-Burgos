@@ -8,7 +8,8 @@
       "categories": "categories",
       "pois": "pois",
       "reviews": "reviews",
-      "scraper_control": "scraper_control"
+      "scraper_control": "scraper_control",
+      "municipality_postal_codes": "municipality_postal_codes"
     }
   },
   "tori_logic": {
@@ -19,7 +20,7 @@
     "margin_days_update_pois": 120,
     "margin_days_update_reviews": 60,
     "postal_code_prefix": "09",
-    "location_province": "Burgos, Spain",
+    "location_province": "Burgos, España",
     "muni_threshold_rural": 400,
     "muni_threshold_semi_rural": 5000
   },
@@ -29,7 +30,7 @@
     "target_poi": "",
     "order_municipalities_by": "population ASC",
     "order_categories_by": "level_1_category ASC, level_2_category ASC, level_3_category ASC, level_4_category ASC, maps_category ASC",
-    "order_pois_by": "poi_id ASC"
+    "order_pois_by": "poi_name ASC"
   },
   "apify_params": {
     "poi_actor": "compass/crawler-google-places",
@@ -38,7 +39,7 @@
     "retry_wait_seconds": 5,
     "language": "es",
     "country_code": "es",
-    "location_province": "Burgos, Spain",
+    "location_province": "Burgos, España",
     "reviews_start_date": "1 month",
     "reviews_personal_data": true,
     "reviews_sort": "newest",

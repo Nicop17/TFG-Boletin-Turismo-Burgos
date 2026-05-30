@@ -144,3 +144,19 @@ def execute_query(query):
     except Exception as e:
         logger.error(f"Error al ejecutar consulta SQL en BigQuery: {e}")
         return [] # Devolvemos lista vacía para que los bucles for no fallen al iterar sobre resultados inexistentes
+
+
+def get_postal_codes(id_municipality):
+    """Obtiene el conjunto de códigos postales de un municipio."""
+    query = f"""
+        SELECT postal_code 
+        FROM `{dataset_path}.{g_config['tables']['municipality_postal_codes']}`
+        WHERE id_municipality = {id_municipality}
+    """
+    try:
+        results = client_bq.query(query).result()
+        # Devolvemos un set eliminando espacios para que la búsqueda sea instantánea
+        return {str(row.postal_code).strip() for row in results}
+    except Exception as e:
+        logger.error(f"Error al obtener códigos postales para el municipio {id_municipality}: {e}")
+        return set()

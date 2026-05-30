@@ -70,7 +70,11 @@ def run_scraper():
 
     for muni in municipalities:
         logger.info(f"\n{'-'*30}\n MUNICIPIO: {muni.name}\n{'-'*30}")
-       
+
+        # Obtenemos los códigos postales del municipio para filtrar los POIs por código postal
+        cp_muni = loader.get_postal_codes(muni.id_municipality)
+        logger.debug(f"Códigos postales permitidos para POIs de {muni.name}: {cp_muni}")
+
         # FASE A: Descubrimiento de POIs
         # Solo entramos si no se ha actualizado el catálogo de POIs del municipio en los últimos margin_days_poi días
         muni_can_update_poi = (filters['target_poi'] == "") and (muni.last_poi_update is None or (today_dt.date() - muni.last_poi_update.date()).days >= margin_days_poi)
@@ -113,14 +117,39 @@ def run_scraper():
                     search_query = f"{cat.maps_category} en {muni.name}, {s_logic['location_province']}"
 
                     logger.info(f" Buscando '{cat.maps_category}' en {muni.name}")
+                    logger.info(f"Consulta de búsqueda para Apify: '{search_query}'")
                     pois_items = extractor.fetch_pois_from_apify(search_query, muni.name, muni_level)
                                     
                     pois_to_load = []
                     for poi in pois_items:
-                        # Filtra por código postal de la provincia para evitar POIs de otros municipios con nombres similares o errores de geolocalización
-                        cp = poi.get('postalCode') or ""
-                        if not cp or not cp.startswith(s_logic['postal_code_prefix']): 
+                        title = (poi.get('title') or "").strip()
+                        title_clean = title.lower().strip()
+                        muni_clean = muni.name.lower().strip()
+                        cp = (poi.get('postalCode') or "").strip()
+                        address = (poi.get('address') or "").strip()
+
+                        # Si el POI se llama igual que el municipio, se descarta directamente (en cada búsqueda trae como POI el nombre del municipio)
+                        if title_clean == muni_clean or title_clean == f"{muni_clean}, Burgos":
+                            logger.debug(f"Marcador territorial genérico detectado ('{title}'). Evitando elemento fantasma del nombre del propio municipio.")
                             continue
+                        
+                        # Filtro específico para POIs que no tienen cp pero en el cp de su dirección se ve que sí forman parte del municipio
+                        if not cp and address:
+                            for cp_autorizado in cp_muni:
+                                if cp_autorizado in address:
+                                    cp = cp_autorizado
+                                    logger.info(f"CP [{cp}] rescatado del texto de la dirección para: '{title}'")
+                                    break
+
+                        # Filtra por los códigos postales del municipio para evitar POIs de otros municipios con nombres similares o errores de geolocalización
+                        cp = (poi.get('postalCode') or "").strip()
+                        if cp_muni:
+                            if cp not in cp_muni:
+                                logger.warning(f"Descartado '{poi.get('title')}' porque el código postal [{cp}] no pertenece a {muni.name}.")
+                                continue
+                        else: # Por si un municipio no tiene códigos postales en base de datos, aplicamos un filtro genérico por prefijo del código postal de la provincia
+                            if not cp or not cp.startswith(s_logic['postal_code_prefix']): 
+                                continue
 
                         google_cat = poi.get('categoryName') or cat.maps_category # Si Google no devuelve categoría, usamos la que tenemos en la tabla de categorías para esta búsqueda
                 
