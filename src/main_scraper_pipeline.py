@@ -114,6 +114,7 @@ def run_scraper():
                     continue
 
                 try:
+                    
                     search_query = f"{cat.maps_category} en {muni.name}, {s_logic['location_province']}"
 
                     logger.info(f" Buscando '{cat.maps_category}' en {muni.name}")
@@ -142,7 +143,6 @@ def run_scraper():
                                     break
 
                         # Filtra por los códigos postales del municipio para evitar POIs de otros municipios con nombres similares o errores de geolocalización
-                        cp = (poi.get('postalCode') or "").strip()
                         if cp_muni:
                             if cp not in cp_muni:
                                 logger.warning(f"Descartado '{poi.get('title')}' porque el código postal [{cp}] no pertenece a {muni.name}.")
@@ -192,7 +192,7 @@ def run_scraper():
                             "id_municipality": muni.id_municipality,
                             "poi_municipality": muni.name,
                             "address": poi.get('address'),         
-                            "postal_code": poi.get('postalCode'),
+                            "postal_code": cp,
                             "id_category": taxonomy.get(google_cat),
                             "maps_category": google_cat,
                             "poi_total_rating": float(poi.get('totalScore') or 0) if poi.get('totalScore') else 0.0,
@@ -207,8 +207,6 @@ def run_scraper():
                             "location": f"POINT({poi.get('location', {}).get('lng')} {poi.get('location', {}).get('lat')})",
                             "price": str(poi.get('price')) if poi.get('price') is not None else None,
                             "images_count": int(poi.get('imagesCount') or 0),
-                            "google_official_tags": ", ".join([t.get('title') for t in poi.get('reviewsTags', [])]),
-                            "related_pois": ", ".join([p.get('title') for p in poi.get('peopleAlsoSearch', [])]),
                             "temporarily_closed": bool(poi.get('temporarilyClosed')),
                             "permanently_closed": bool(poi.get('permanentlyClosed')),
                             "wheelchair_accessible": wheelchair,
@@ -222,8 +220,7 @@ def run_scraper():
                         loader.client_bq.load_table_from_json(pois_to_load, stg_poi).result()
                         poi_updates = ["poi_total_rating", "reviews_count", "reviews_dist_5star", "reviews_dist_4star", 
                                     "reviews_dist_3star", "reviews_dist_2star", "reviews_dist_1star", "images_count", 
-                                    "temporarily_closed", "permanently_closed", "google_official_tags", "related_pois", 
-                                    "wheelchair_accessible", "child_friendly", "claim_business","last_poi_update"]
+                                    "temporarily_closed", "permanently_closed", "wheelchair_accessible", "child_friendly", "claim_business","last_poi_update"]
                         loader.run_merge_query(f"{dataset_path}.{g_tables['pois']}", stg_poi, "poi_id", poi_updates, list(pois_to_load[0].keys()))
                         logger.info(f"{len(pois_to_load)} POIs actualizados para la categoría '{cat.maps_category}' en {muni.name}")
                     else:
@@ -250,7 +247,7 @@ def run_scraper():
             logger.debug(f"Fase A (POIs) ya completada para {muni.name} recientemente. Saltando a reseñas.")
 
       
-        # FASE B: EXTRAER RESEÑAS POI A POI
+        # # FASE B: EXTRAER RESEÑAS POI A POI
         if filters['target_poi'] == "": # Si no se especifica un POI, se procesan todos los POIs pendientes de extracción de reseñas
             # Buscamos POIs pendientes de hoy
             query_pois = f"""
