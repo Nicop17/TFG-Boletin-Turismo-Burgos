@@ -78,5 +78,4 @@ Controla el comportamiento del sistema de monitorización visual por consola.
     * `"WARNING"`: Filtra todo excepto advertencias de rendimiento o anomalías no críticas.
     * `"ERROR"`: Muestra únicamente excepciones que interrumpen o cuelgan módulos concretos del pipeline.
 * **`log_to_file`**: Variable booleana (`true` o `false`) que activa o desactiva la clonación de las trazas de la consola en un archivo de texto físico.
-* **`log_file_name`**: Nombre del archivo físico donde se guardará el histórico completo de eventos de la ETL (ej. `"scraper_execution.log"`).
 * **`log_format`**: Máscara estructural con marcadores de posición nativos de Python que define el diseño visual exacto de cada línea del log (El formato por defecto contiene marcas de tiempo, etiquetas de severidad, nombre del script de origen, número de línea exacto donde ocurrió el evento y el mensaje descriptivo).

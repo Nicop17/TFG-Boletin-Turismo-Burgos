@@ -10,3 +10,6 @@ __pycache__/
 # Entornos virtuales
 venv/
 env/
+
+# Ignorar los archivos de log de las ejecuciones locales
+logs/*.log
