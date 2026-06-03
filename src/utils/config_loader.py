@@ -7,8 +7,8 @@ class ConfigLoader:
     @classmethod
     def get_config(cls):
         if cls._config is None:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(base_dir, "..", "..", "config.json")
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            config_path = os.path.join(base_dir, 'config', 'config.json')
             
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
