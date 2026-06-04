@@ -49,7 +49,7 @@ if not logger.handlers:
 # Mensaje de inicio del pipeline
 current_log_name = log_filename if log_params.get('log_to_file') else "Desactivado"
 
-logger.info("="*60 + "\n" +
+logger.info("\n" + "="*60 + "\n" +
             "      INICIO DE EJECUCIÓN DEL PIPELINE - BOLETÍN DE TURISMO\n" +
             "="*60)
 logger.info(f"Nivel de detalle de logs: [{log_params.get('log_level', 'INFO').upper()}]")
