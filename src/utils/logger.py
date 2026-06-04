@@ -12,7 +12,6 @@ logs_dir = os.path.join(root_dir, "logs")
 log_params = settings.get('logging_params', {
     "log_level": "INFO",
     "log_to_file": True,
-    "log_file_name": "scraper_execution.log",
     "log_format": "%(asctime)s [%(levelname)s] (%(filename)s:%(lineno)d) - %(message)s"
 })
 
@@ -46,3 +45,13 @@ if not logger.handlers:
         file_handler = logging.FileHandler(complete_path_log, encoding='utf-8')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+
+# Mensaje de inicio del pipeline
+current_log_name = log_filename if log_params.get('log_to_file') else "Desactivado"
+
+logger.info("="*60 + "\n" +
+            "      INICIO DE EJECUCIÓN DEL PIPELINE - BOLETÍN DE TURISMO\n" +
+            "="*60)
+logger.info(f"Nivel de detalle de logs: [{log_params.get('log_level', 'INFO').upper()}]")
+logger.info(f"Historial físico de logs: logs/{current_log_name}")
+logger.info("-" * 60)

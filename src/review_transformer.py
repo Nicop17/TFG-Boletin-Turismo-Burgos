@@ -30,8 +30,7 @@ def clean_translate_review(rev, p_id):
     logger.debug(f"Texto detectado por Apify: '{text_raw}'")
     logger.debug(f"Longitud palabras: {word_count}")
 
-
-    logger.info(f"Analizando reseña {rev.get('reviewId')}: '")
+    logger.info(f"Analizando reseña {review_id}. Fecha: {fecha_relativa}")
 
     if not text_raw or word_count < t_params['min_review_words']:
         logger.info(f"Reseña {review_id} descartada: Solo {word_count} palabras (mínimo {t_params['min_review_words']}).")

@@ -1,9 +1,10 @@
 from datetime import datetime
+from utils.config_loader import settings
+from utils.logger import logger
 import bigquery_loader as loader
 import review_transformer as transformer
 import apify_extractor as extractor
-from utils.config_loader import settings
-from utils.logger import logger
+
 
 s_logic = settings['scraper_logic']
 g_tables = settings['google_cloud']['tables']
@@ -69,7 +70,7 @@ def run_scraper():
         return 
 
     for muni in municipalities:
-        logger.info(f"\n{'-'*30}\n MUNICIPIO: {muni.name}\n{'-'*30}")
+        logger.info(f"\n{'='*30}\n MUNICIPIO: {muni.name}\n{'='*30}")
 
         # Obtenemos los códigos postales del municipio para filtrar los POIs por código postal
         cp_muni = loader.get_postal_codes(muni.id_municipality)
@@ -79,6 +80,10 @@ def run_scraper():
         # Solo entramos si no se ha actualizado el catálogo de POIs del municipio en los últimos margin_days_poi días
         muni_can_update_poi = (filters['target_poi'] == "") and (muni.last_poi_update is None or (today_dt.date() - muni.last_poi_update.date()).days >= margin_days_poi)
         if muni_can_update_poi:
+            logger.info("\n"
+                "\t------------------------------------------------------------\n"
+                "\t|               [FASE A: EXTRACCIÓN DE POIs]               |\n"
+                "\t------------------------------------------------------------")
             # Consultamos qué categorías ya se han buscado en este municipio en los últimos {margin_days_poi} días
             query_cat = f"""
                     SELECT category FROM `{dataset_path}.{g_tables['scraper_control']}`
@@ -88,7 +93,7 @@ def run_scraper():
             done_categories = [r.category for r in loader.execute_query(query_cat)]
             muni_level = get_muni_level(muni.population)
 
-            if filters['target_category'] == "": # Si no se especifica una categoría, se procesan todas
+            if filters['target_category'] == "": # Si no se especifica una categoría, se procesan todas las categorías del municipio según su nivel de búsqueda
                 categories = list(loader.execute_query(
                     f"""
                     SELECT * FROM `{dataset_path}.{g_tables['categories']}` 
@@ -110,15 +115,15 @@ def run_scraper():
             for cat in categories: # Pois por categoría
                 # Comprobamos si esta categoría específica ya se buscó en este municipio
                 if cat.maps_category in done_categories:
-                    logger.debug(f"Categoría '{cat.maps_category}' ya buscada en {muni.name} recientemente. Saltando.")
+                    logger.debug(f"Categoría '{cat.maps_category}' ya buscada en {muni.name} recientemente. Saltando categoría.")
                     continue
 
                 try:
                     
                     search_query = f"{cat.maps_category} en {muni.name}, {s_logic['location_province']}"
 
-                    logger.info(f" Buscando '{cat.maps_category}' en {muni.name}")
-                    logger.info(f"Consulta de búsqueda para Apify: '{search_query}'")
+                    logger.info(f"\n\t{'-'*30}\n\t CATEGORÍA: {cat.maps_category} \n\t{'-'*30}")
+                    logger.debug(f"Consulta de búsqueda para Apify: '{search_query}'")
                     pois_items = extractor.fetch_pois_from_apify(search_query, muni.name, muni_level)
                                     
                     pois_to_load = []
@@ -264,6 +269,10 @@ def run_scraper():
                 WHERE poi_municipality = '{muni.name}'
                 AND poi_name = '{filters['target_poi']}'
             """
+        logger.info("\n"
+            "\t------------------------------------------------------------\n"
+            "\t|              [FASE B: EXTRACCIÓN DE RESEÑAS]             |\n"
+            "\t------------------------------------------------------------")
 
         pois = list(loader.execute_query(query_pois))
 
@@ -275,8 +284,7 @@ def run_scraper():
             try:
                 poi_can_extract_reviews = poi.last_review_extraction is None or (today_dt.date() - poi.last_review_extraction.date()).days >= margin_days_reviews
                 if poi_can_extract_reviews:
-
-                    logger.info(f" Sacando reseñas para: {poi.poi_name}")
+                    logger.info(f"\n\t{'-'*30}\n\t POI: {poi.poi_name} \n\t{'-'*30}")
                     last_id_in_db = loader.get_last_stored_review_id(poi.poi_id)
                     reviews_items = extractor.fetch_reviews_from_apify(poi.poi_id)
 
@@ -297,7 +305,7 @@ def run_scraper():
                         loader.update_poi_tori(poi.poi_id) # Actualizamos el TORI de ese POI tras cargar sus reseñas
                         logger.info(f"{len(reviews_to_load)} Nuevas reseñas añadidas.")
                     else:
-                        logger.info(f"No se encontraron reseñas nuevas nuevas para el POI: {poi.poi_name}.")
+                        logger.info(f"No se encontraron reseñas nuevas para el POI: {poi.poi_name}.")
                     # Marcamos el POI como procesado hoy
                     loader.execute_query(f"UPDATE `{dataset_path}.{g_tables['pois']}` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE poi_id = '{poi.poi_id}'")
                 else:
@@ -317,7 +325,9 @@ def run_scraper():
         else:
             logger.info(f"Fase B (Reviews) completada para el poi {filters['target_poi']} en {muni.name}.")
     
-    logger.info(f"\n{'='*30}\nEJECUCIÓN DEL SCRAPER COMPLETADA\n{'='*30}\n")
+    logger.info("\n" + "="*60 + "\n" +
+            "      EJECUCIÓN DEL SCRAPER COMPLETADA - BOLETÍN DE TURISMO\n" +
+            "="*60)
 
 if __name__ == "__main__":
     run_scraper()
