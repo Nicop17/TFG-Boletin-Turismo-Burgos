@@ -2,9 +2,8 @@
 
 Este directorio está destinado exclusivamente al almacenamiento automatizado y la persistencia de los registros de depuración (*logs*) generados por el pipeline ETL en cada ejecución.
 
-El aislamiento de estos registros en ficheros independientes previene que un único archivo de trazas crezca indefinidamente en disco, optimizando el rendimiento de lectura y facilitando las tareas de auditoría.
-
 El aislamiento de estos registros en ficheros independientes previene que un único archivo de trazas crezca indefinidamente en disco, optimizando el rendimiento de lectura del sistema. Además, simplifica la auditoría del software al permitir al desarrollador o usuario localizar e ir directamente a la ejecución exacta que se desee revisar. De este modo, se optimiza la revisión del histórico de operaciones del scraper y se elimina la necesidad de navegar manualmente entre millones de líneas de texto antiguas para diagnosticar un corte de red, comprobar un fallo puntual de la API o analizar el comportamiento del sistema en un momento específico del tiempo.
+
 ---
 
 ## Nomenclatura de los Archivos
