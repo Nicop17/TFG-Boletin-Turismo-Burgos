@@ -9,6 +9,7 @@ import apify_extractor as extractor
 s_logic = settings['scraper_logic']
 g_tables = settings['google_cloud']['tables']
 filters = settings['execution_filters']
+params = settings['apify_params']
 dataset_path = f"{settings['google_cloud']['project_id']}.{settings['google_cloud']['dataset_id']}"
 
 def get_muni_level(population):
@@ -293,9 +294,10 @@ def run_scraper():
                         res = transformer.clean_translate_review(r, poi.poi_id)
                         if res:
                             # Si la reseña del POI ya la tenemos guardada, paramos este POI porque las reseñas vienen ordenadas de más nuevas a más antiguas, por lo tanto las siguientes también las tendremos guardadas
-                            if res['review_id'] == last_id_in_db:
-                                logger.info(f"Coincidencia de ID hallada en la base de datos para {poi.poi_name}. Parando extracción de este POI.")
-                                break
+                            if params['reviews_sort'] == 'newest':
+                                if res['review_id'] == last_id_in_db:
+                                    logger.info(f"Coincidencia de ID hallada en la base de datos para {poi.poi_name}. Parando extracción de este POI.")
+                                    break
                             reviews_to_load.append(res)
 
                     if reviews_to_load:
