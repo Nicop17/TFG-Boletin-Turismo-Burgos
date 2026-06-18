@@ -4,5 +4,6 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./key.json:/app/key.json
+      - ./logs:/app/logs
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/key.json
