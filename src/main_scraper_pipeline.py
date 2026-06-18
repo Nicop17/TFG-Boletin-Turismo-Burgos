@@ -186,10 +186,30 @@ def run_scraper():
                                 continue # No podemos cargar el POI sin categoría válida
 
                         additional_info = poi.get('additionalInfo', {})
-                        accesibility_list = additional_info.get('Accessibility', [])
-                        wheelchair = any(item.get('Wheelchair accessible entrance') for item in accesibility_list)
-                        children_list = additional_info.get('Children', [])
-                        children_friendly = any(item.get('Good for kids') for item in children_list)
+                        
+                        wheelchair = None
+
+                        accessibility_list = additional_info.get('Accessibility', []) or additional_info.get('Accesibilidad', [])
+                        for item in accessibility_list:
+                            for key, value in item.items():
+                                key_lower = key.lower()
+                                # Si la etiqueta contiene palabras clave de silla de ruedas/accesibilidad
+                                if 'wheelchair' in key_lower or 'silla' in key_lower or 'accesible' in key_lower:
+                                    wheelchair = bool(value)
+                                    break
+                            if wheelchair is not None:
+                                break
+                        
+                        # Pasa los valores a STRING para poder almacenar el valor nulo en BigQuery y 
+                        # que no sea solo un booleano de True/False para poder detectar los POIs sin 
+                        # información y no asignarlos automáticamente como false
+                        if wheelchair is True:
+                            str_wheelchair = "TRUE"
+                        elif wheelchair is False:
+                            str_wheelchair = "FALSE"
+                        else:
+                            str_wheelchair = None 
+
                         dist = poi.get('reviewsDistribution', {})
                         
                         pois_to_load.append({
@@ -215,8 +235,7 @@ def run_scraper():
                             "images_count": int(poi.get('imagesCount') or 0),
                             "temporarily_closed": bool(poi.get('temporarilyClosed')),
                             "permanently_closed": bool(poi.get('permanentlyClosed')),
-                            "wheelchair_accessible": wheelchair,
-                            "child_friendly": children_friendly,
+                            "wheelchair_accessible": str_wheelchair,
                             "claim_business": poi.get('claimThisBusiness'),
                             "last_poi_update": datetime.now().isoformat()
                         })
@@ -226,7 +245,7 @@ def run_scraper():
                         loader.client_bq.load_table_from_json(pois_to_load, stg_poi).result()
                         poi_updates = ["poi_total_rating", "reviews_count", "reviews_dist_5star", "reviews_dist_4star", 
                                     "reviews_dist_3star", "reviews_dist_2star", "reviews_dist_1star", "images_count", 
-                                    "temporarily_closed", "permanently_closed", "wheelchair_accessible", "child_friendly", "claim_business","last_poi_update"]
+                                    "temporarily_closed", "permanently_closed", "wheelchair_accessible", "claim_business","last_poi_update"]
                         loader.run_merge_query(f"{dataset_path}.{g_tables['pois']}", stg_poi, "poi_id", poi_updates, list(pois_to_load[0].keys()))
                         logger.info(f"{len(pois_to_load)} POIs actualizados para la categoría '{cat.maps_category}' en {muni.name}")
                     else:
@@ -318,7 +337,6 @@ def run_scraper():
                 continue # Saltamos al siguiente POI
         
         # Marcamos municipio como procesado hoy en extracción de reseñas si no se ha pedido un POI concreto
-        
         if filters['target_poi'] == "":
             loader.execute_query(f"UPDATE `{dataset_path}.{g_tables['municipalities']}` SET last_review_extraction = CURRENT_TIMESTAMP() WHERE name = '{muni.name}'")
             logger.info(f"Municipio {muni.name} completado.")

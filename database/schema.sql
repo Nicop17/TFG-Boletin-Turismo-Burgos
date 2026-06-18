@@ -46,8 +46,7 @@ CREATE TABLE IF NOT EXISTS `tfg-boletin-turismo-burgos.ds_turismo_reviews.pois`
   images_count INT64 OPTIONS(description="Cantidad total de imágenes en la ficha de Google"),
   temporarily_closed BOOL OPTIONS(description="Indica si el sitio está cerrado temporalmente"),
   permanently_closed BOOL OPTIONS(description="Indica si el sitio está cerrado permanentemente"),
-  wheelchair_accessible BOOL OPTIONS(description="Indica si el sitio es accesible para sillas de ruedas"),
-  child_friendly BOOL OPTIONS(description="Indica si el sitio es adecuado para niños"),
+  wheelchair_accessible STRING OPTIONS(description="Indica si el sitio es accesible para sillas de ruedas"),
   claim_business BOOL OPTIONS(description="Indica si el negocio ha sido reclamado por su dueño"),
   last_poi_update TIMESTAMP OPTIONS(description="Fecha de la última actualización de los datos generales del POI"),
   last_review_extraction TIMESTAMP OPTIONS(description="Fecha de la última extracción de reseñas para este POI")
