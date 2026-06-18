@@ -65,7 +65,7 @@ def clean_translate_review(rev, p_id):
         name_parts = reviewer_name.split()
         first_name = name_parts[0] if name_parts else t_params['default_user_name']
         gender_raw = gender_detector.get_gender(first_name)
-        reviewer_gender = "Masculino" if "male" in gender_raw else "Femenino" if "female" in gender_raw else t_params['default_user_gender']
+        reviewer_gender = "Femenino" if "female" in gender_raw else "Masculino" if "male" in gender_raw else t_params['default_user_gender']
     except Exception as e:
         logger.error(f"Error detectando género de {reviewer_name}: {e}")
         reviewer_gender = t_params['default_user_gender']
