@@ -200,16 +200,9 @@ def run_scraper():
                             if wheelchair is not None:
                                 break
                         
-                        # Pasa los valores a STRING para poder almacenar el valor nulo en BigQuery y 
-                        # que no sea solo un booleano de True/False para poder detectar los POIs sin 
-                        # información y no asignarlos automáticamente como false
-                        if wheelchair is True:
-                            str_wheelchair = "TRUE"
-                        elif wheelchair is False:
-                            str_wheelchair = "FALSE"
-                        else:
-                            str_wheelchair = None 
-
+                        if wheelchair is None:
+                            wheelchair = False  # Si no indica nada, se asume que no es accesible para sillas de ruedas
+                        
                         dist = poi.get('reviewsDistribution', {})
                         
                         pois_to_load.append({
@@ -235,7 +228,7 @@ def run_scraper():
                             "images_count": int(poi.get('imagesCount') or 0),
                             "temporarily_closed": bool(poi.get('temporarilyClosed')),
                             "permanently_closed": bool(poi.get('permanentlyClosed')),
-                            "wheelchair_accessible": str_wheelchair,
+                            "wheelchair_accessible": wheelchair,
                             "claim_business": poi.get('claimThisBusiness'),
                             "last_poi_update": datetime.now().isoformat()
                         })

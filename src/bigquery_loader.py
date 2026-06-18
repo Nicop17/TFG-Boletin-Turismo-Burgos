@@ -35,7 +35,7 @@ except Exception as e:
 def run_merge_query(table_id, staging_table_id, pk_field, update_fields, all_fields):
     """Ejecuta un MERGE en BigQuery para automatizar el Upsert."""
     # Campos que siempre deben ser tratados como STRING 
-    string_fields = ["review_id", "poi_id", "reviewer_id", "price", "postal_code", "wheelchair_accessible"]
+    string_fields = ["review_id", "poi_id", "reviewer_id", "price", "postal_code"]
 
     # Generar la parte del UPDATE
     update_clauses = []
