@@ -1,0 +1,187 @@
+\apendice{Plan de Proyecto Software}
+
+\section{Introducción}
+Este anexo detalla el marco organizativo y operativo del proyecto. En primer lugar, se expone la planificación temporal realizada durante el periodo de desarrollo del TFG. En segundo lugar, se presenta el estudio de viabilidad del sistema, analizando la sostenibilidad financiera de las infraestructuras cloud elegidas y el cumplimiento normativo en materia de captura automatizada de datos y protección de la privacidad. Con ello, se justifica formalmente la viabilidad y la hoja de ruta seguida durante el proyecto.
+
+
+\section{Planificación temporal}
+Para el desarrollo de este proyecto, se ha seguido una metodología ágil basada en \textit{Sprints} de trabajo de aproximadamente 2 semanas, gestionando las tareas a través de Issues y un tablero Kanban mediante la herramienta ZenHub integrada en GitHub. Esto ha permitido adaptar el desarrollo del pipeline de forma iterativa según surgían imprevistos o nuevas ideas para mejorar los resultados. 
+
+A continuación, se detallan las fases y los bloques de trabajo principales en los que se organizó el periodo de desarrollo:
+
+\subsection{Sprint 1: Configuración inicial del entorno (19 de febrero - 3 de marzo)}
+El primer sprint se centró en el establecimiento del entorno de desarrollo base para el proyecto. Las tareas incluyeron la inicialización del repositorio de código, la gestión de las dependencias necesarias y la obtención de las credenciales necesarias para interactuar con las APIs externas. Asimismo, se realizó un análisis detallado de la documentación técnica del proyecto anterior con el objetivo de identificar puntos de mejora y prever limitaciones técnicas en las fases de extracción de datos.
+\begin{itemize}
+    \item Lectura y análisis de la documentación técnica.
+    \item Configuración inicial del entorno y repositorio.
+    \item Instalación de dependencias.
+    \item Obtener claves de API (Google y Apify).
+\end{itemize}
+
+\subsection{Sprint 2: Prototipado de almacenamiento y migración de datos (3 de marzo - 17 de marzo)}
+Este sprint se enfocó en la evaluación de los sistemas de gestión de bases de datos y la portabilidad de la información. Para ello, se desplegó e instaló un servidor local en MySQL con el objetivo de testear la adaptación de los scripts de Python preexistentes. Asimismo, se realizó una migración de prueba desde la infraestructura previa en Azure (SQL Server) hacia el entorno local para validar la integridad de los datos. Esta fase fue crucial para contrastar la viabilidad del almacenamiento relacional local frente a las futuras soluciones definitivas en la nube, además de asentar las bases de la documentación en Overleaf y la planificación general.
+
+\begin{itemize}
+    \item Instalar y configurar servidor local MySQL.
+    \item Adaptar scripts de Python para integración con MySQL.
+    \item Iniciar proyecto en Overleaf.
+    \item Crear planificación general de Sprints.
+    \item Migración de Base de Datos de Azure (SQL Server) a MySQL Local.
+\end{itemize}
+
+\subsection{Sprint 3: Investigación de herramientas de scraping y planificación (18 de marzo - 24 de marzo)}
+El tercer sprint se dedicó al estudio exhaustivo y evaluación técnica de las alternativas tecnológicas para la extracción automatizada, el procesamiento de datos y la infraestructura del sistema. Se analizaron herramientas y plataformas como Apify, Google Cloud Platform (GCP) y GitHub Actions con el objetivo de proponer una arquitectura en la nube robusta que superase las limitaciones de los sistemas locales. En paralelo, se configuró el ecosistema de gestión ágil en ZenHub mediante la configuración de los sistemas de estimación de esfuerzo, la personalización del etiquetado de tareas y la vinculación de recursos en el repositorio principal.
+
+\begin{itemize}
+    \item Vincular enlace de Overleaf en el README.
+    \item Configuración del entorno de trabajo y sistema de estimación de esfuerzo en Zenhub.
+    \item Estudio de alternativas para la extracción, automatización e infraestructura de datos.
+    \item Creación de etiquetas necesarias para los issues planificados en los sprints.
+\end{itemize}
+
+\subsection{Sprint 4: Reestructuración y prueba de flujo completo (25 de marzo - 9 de abril)}
+El objetivo principal de este sprint fue consolidar la nueva arquitectura del proyecto y verificar su funcionamiento integral. Durante esta fase, se realizó una limpieza profunda del repositorio, el diseño del diagrama de arquitectura y la actualización de la documentación técnica en el archivo README. Asimismo, se llevó a cabo una prueba funcional mediante un mini-scraper para confirmar que el flujo completo procesaba los datos correctamente, abarcando desde la extracción mediante la API hasta la visualización final en Looker Studio, pasando por Docker, GitHub Actions y Google BigQuery. El objetivo principal fue asegurar que la infraestructura y las herramientas estuvieran integradas antes de comenzar con la extracción masiva de datos.
+
+\begin{itemize}
+    \item Configuración de infraestructura en Google Cloud y esquema BigQuery.
+    \item Configuración de seguridad y secretos.
+    \item Desarrollo de Scraper.
+    \item Implementación de Docker para entornos de scraping.
+    \item Automatización CI/CD: GitHub Actions Workflow.
+    \item Prueba Comparativa: Google Cloud Functions.
+    \item Dashboard de prueba en Looker Studio.
+    \item Reestructuración y limpieza del repositorio.
+    \item Replanificación de los sprints del proyecto.
+\end{itemize}
+
+\subsection{Sprint 5: Implementación del scraper y validación del modelo de análisis de sentimiento (10 de abril - 21 de abril)}
+Con la arquitectura ya validada, el quinto sprint se dedicó al desarrollo de la base del scraper definitivo, ampliando el rango de búsqueda a los municipios de la provincia de Burgos e incluyendo la lógica de traducción y limpieza de las reseñas obtenidas. Durante esta fase, se realizó un rediseño en la arquitectura de datos para separar la gestión de los puntos de interés (POIs) de la tabla de reseñas. Además, se llevó a cabo la integración y verificación de la librería de procesamiento del lenguaje natural con los datos reales extraídos, asegurando una correcta clasificación del análisis de sentimiento. El objetivo principal fue consolidar el núcleo del proyecto para garantizar la obtención de datos limpios, enriquecidos y analizados de forma automatizada.
+
+\begin{itemize}
+    \item Rediseño de arquitectura de datos: Separación POIs y Reseñas.
+    \item Implementación del scraper ampliado a la provincia de Burgos.
+    \item Aplicar limpieza y traducción de reseñas en el scraper.
+    \item Integración del análisis de sentimiento de las reseñas en el scraper.
+\end{itemize}
+
+\subsection{Sprint 6: Fase de experimentación, segmentación y optimización de costes del scraper (22 de abril - 5 de mayo)}
+El sexto sprint se centró en la evaluación del rendimiento y la viabilidad económica del pipeline de extracción de datos. Durante este periodo, se realizaron pruebas iterativas para obtener estimaciones globales de los costes operativos del scraper. Asimismo, se implementó una estrategia de optimización basada en la segmentación de los municipios de la provincia según su volumen de población. Adicionalmente, se avanzó en la optimización del barrido geográfico en entornos urbanos de alta densidad para asegurar una captura de datos equilibrada. El objetivo principal de esta fase fue acotar el comportamiento del scraper y asentar las bases del control de costes y la eficiencia del proyecto antes de proceder al cierre del código.
+
+\begin{itemize}
+    \item Refactorización del scraper al patrón pipeline.
+    \item Ajuste de categorías de búsqueda y prueba de eficiencia.
+    \item Optimización de costes mediante segmentación por población.
+    \item Hacer pruebas para obtener estimaciones globales de costes aproximadas.
+    \item Optimización del barrido geográfico en entornos urbanos.
+\end{itemize}
+
+\subsection{Sprint 7: Continuación del bloque de extracción: refactorización estructural, robustez e infraestructura (6 de mayo - 19 de mayo)}
+La continuidad del desarrollo del bloque de extracción y el procesamiento de datos centraron los esfuerzos de este periodo, enfocándose en dotar al sistema de una mayor estabilidad y robustez técnica. Para asegurar la tolerancia a fallos, se implementó un tratamiento de errores exhaustivo dentro del scraper y se actualizó la infraestructura base del proyecto, adaptando los contenedores Docker, las dependencias del sistema y los flujos automatizados de GitHub Actions. En paralelo, se llevó a cabo la mejora estructural de la base de datos en Google BigQuery mediante la refactorización del esquema de la tabla de puntos de interés para integrarla en un modelo relacional por IDs de categoría. Finalmente, se aislaron los parámetros operativos mediante una arquitectura de configuración externa y se desplegó un sistema de trazabilidad mediante logs, dejando el pipeline optimizado para la fase de visualización.
+
+\begin{itemize}
+    \item Tratamiento de errores en el scraper.
+    \item Actualización de infraestructura (Docker, workflow (scraper.yml) y requirements.txt).
+    \item Refactorización del esquema de la tabla pois e integración de relación de categorías por ID.
+    \item Implementación de arquitectura de configuración externa y desacoplamiento de parámetros.
+    \item Implementación de sistema de trazabilidad y gestión de logs mediante el módulo logging.
+\end{itemize}
+
+\subsection{Sprint 8: Extensión del bloque de extracción: investigación de cambios en Maps y de alternativas de extracción, pruebas de ejecución y pulido del sistema (20 de mayo - 2 de junio)}
+Un contratiempo inesperado en el comportamiento del scraper, provocado por una actualización reciente en el algoritmo de resultados de Google Maps, condicionó el desarrollo de este periodo de trabajo. Debido a este cambio externo que alteraba la precisión de las búsquedas, la mayor parte del esfuerzo se redirigió a investigar, analizar y probar nuevas estrategias de barrido híbridas en entornos de diferente densidad demográfica. En paralelo, se continuó con el perfeccionamiento de la estructura general del sistema, optimizando las tablas de BigQuery en función de los resultados observados y mejorando tanto la arquitectura de archivos de configuración como la gestión del logger. El objetivo final fue dar por concluido el bloque de extracción, procesamiento y automatización, asegurando la operatividad completa del sistema antes de iniciar la fase de visualización y documentación técnica.
+
+\begin{itemize}
+    \item Implementación de filtro por código postal para descartar falsos positivos de Google Maps.
+    \item Pruebas de rendimiento, cobertura y análisis del algoritmo de Google Maps.
+    \item Creación del paquete de inicialización de la base de datos (SQL y CSVs).
+    \item Creación de nueva carpeta de configuración en la raíz del repositorio.
+    \item Implementación de un sistema de historial de archivos de log por ejecución.
+    \item Optimización del diseño visual del logger.
+\end{itemize}
+
+\subsection{Sprint 9: Conexión con Looker Studio, vistas analíticas y documentación técnica (3 de junio - 16 de junio)}
+Este sprint se centró en el aprendizaje de la utilización de Looker Studio y el inicio de la documentación técnica del sistema. Se realizaron las primeras pruebas de diseño y selección de gráficos en Looker Studio, estableciendo la conexión con la base de datos cloud mediante la creación de vistas optimizadas en BigQuery con los \textit{joins} ya procesados. En el ámbito documental, se avanzó en la redacción del Apéndice D, correspondiente al manual de programación y la estructura de archivos. Además, durante la elaboración del manual de instalación y ejecución, se detectaron y corrigieron aspectos de la puesta a punto en Docker, optimizando la persistencia de los logs y actualizando las dependencias del contenedor.
+
+\begin{itemize}
+    \item Desarrollo e implementación integral del cuadro de mando en Looker Studio (\textit{Issue general - Fase de inicio y pruebas}).
+    \item Redacción del Apéndice D de los Anexos (Documentación técnica de programación).
+    \item Implementación de vistas en BigQuery y conexión con Looker Studio.
+    \item Configurar persistencia de logs en Docker, actualizar dependencias y validar ejecución local.
+\end{itemize}
+
+\section{Estudio de viabilidad}
+El propósito de este apartado es informar sobre la viabilidad económica y legal del sistema, detallando los costes reales asociados a su puesta en marcha y mantenimiento a largo plazo, así como el cumplimiento del marco jurídico actual.
+ 
+\subsection{Viabilidad económica}
+Para evaluar la viabilidad económica se ha analizado lo que supondría mantener este sistema en producción a lo largo del tiempo. Es importante destacar que los costes de los servicios en la nube están en continuo cambio por parte de los proveedores, por lo que las estimaciones basadas en las pruebas realizadas son orientativas y no fijas. De hecho, en las numerosas pruebas que se han realizado a lo largo del trabajo, los resultados obtenidos tanto de costes como de tiempo de ejecución varían considerablemente.
+
+A nivel de infraestructura, el coste de las herramientas utilizadas es el siguiente:
+\begin{itemize}
+    \item \textbf{Google BigQuery:} El almacenamiento y la consulta de datos se mantienen en 0€ al mes gracias a su nivel gratuito permanente, el cual incluye 10 GB de almacenamiento mensual y 1 TB de consultas procesadas al mes \cite{gcp_pricing_bigquery}. Dado que el volumen de datos de los municipios y puntos de interés (POIs) de la provincia de Burgos es puramente de texto, la base de datos completa de miles de registros ocupa apenas unas decenas de megabytes, quedando totalmente blindada dentro del límite gratuito sin riesgo de generar costes.
+    \item \textbf{GitHub Actions y Docker:} La versión gratuita de GitHub Actions impone una restricción crítica, un tiempo máximo de ejecución de 6 horas por cada trabajo independiente \cite{github_actions_billing}. Debido a que la extracción masiva de toda la provincia requiere un tiempo de cómputo estimado de aproximadamente 250 horas según los últimos cálculos, el uso del entorno gratuito estándar de GitHub Actions es inviable para ejecuciones del pipeline completo, limitando su uso a pruebas cortas o requiriendo fragmentar la ejecución en tareas mucho más pequeñas por municipios. En cualquier caso, se podrían realizar las ejecuciones completas conectando un servidor propio al repositorio de GitHub o de forma manual, ya sea a través de Docker o ejecutando el script en la consola.
+    \item \textbf{Plataforma de extracción (Apify):} En base a las pruebas reales de consumo de créditos, se estima que una ejecución completa de la provincia cuesta aproximadamente \textbf{400\$}. Este cálculo aproximado surge de sumar dos tareas independientes:
+    \begin{itemize}
+        \item \textbf{Extracción de POIs:} Un coste de ejecución de unos 340\$ para realizar el barrido por municipios y completar la base total de establecimientos o puntos de interés de la provincia de Burgos.
+        \item \textbf{Extracción de reseñas:} Un coste de unos 60\$ basado en una estimación de 50.000 POIs aproximados que puede haber en la provincia según las estimaciones del proyecto y que, por las pruebas realizadas, generen una media de 2 reseñas nuevas al mes, con un coste fijo por reseña procesada de 0,0006\$ según el actor de Apify que se encarga de extraerlas, más un coste residual de ejecución del actor de unos 2,50\$ en total sumando todas las ejecuciones.
+    \end{itemize}
+\end{itemize}
+
+El coste puede variar enormemente en función de posibles actualizaciones tanto en el algoritmo de Google Maps como en los actores de Apify que se encargan de extraer la información. También se ha detectado bastante diferencia especialmente en tiempo de ejecución (aumenta el coste aunque prácticamente no tiene influencia) de unos días a otros o incluso al realizar las pruebas por el día o por la noche, siendo hasta 4 o 5 veces más rápido en algunas ocasiones en comparación a otras, realizando exactamente la misma consulta a Apify.
+
+Al ser un sistema bajo demanda, el coste anual dependerá exclusivamente de la frecuencia de actualización que decida la institución. Para gestionar este coste, se deben tener en cuenta los planes comerciales disponibles en Apify \cite{apify_pricing}. La plataforma ofrece un descuento del 50\% para estudiantes y fines académicos con una duración máxima de 4 meses (un semestre) vinculando un correo institucional como el de la Universidad de Burgos (\textit{@ubu.es}) \cite{apify_universities}. No obstante, si la UBU decidiese ejecutar el proyecto de forma institucional y permanente, \textbf{este descuento del 50\% de estudiante ya no se aplicaría}, debiendo pagar las tarifas comerciales estándar o negociar un contrato personalizado independiente. 
+
+En las tarifas, los \$ que pagas son los \$ de créditos que tienes derecho a consumir ese mes (por ejemplo, el Plan Scale: 199\$ de coste al mes -> 199\$ en créditos para consumir al mes). El plan Free ofrece 5\$ mensuales de forma gratuita. Además, hay un descuento progresivo de coste por compute unit a medida que se mejora el plan de suscripción, lo que reduciría el coste ligeramente al contratar uno de los planes superiores. A continuación, en la tabla~\ref{tabla:apify_planes} se detalla la estructura de planes oficiales de la plataforma (con una conversión de 1 USD = 0,92 EUR):
+
+{%
+\setlength{\tabcolsep}{4pt}
+\tablaSmall{Planes de precios de Apify (Formato: USD / EUR)}{lcccc}{apify_planes}{%
+    \textbf{Plan} & \textbf{Mensual} & \textbf{Pago Anual} & \textbf{Dto. Academ.} & \textbf{Dto. + Anual} \\
+}{%
+    \textbf{Free}            & 0\$ (0€)                  & 0\$ (0€)               & 0\$ (0€)                   & 0\$ (0€)                      \\
+    \textbf{Starter}         & 29\$ (26,7€)                & 26,1\$ (24€)          & 14,5\$ (13,3€)              & 13\$ (12€)                 \\
+    \textbf{Scale}           & 199\$ (183€)              & 179\$ (164,8€)        & 99,5\$ (91,5€)              & 89,5\$ (82,4€)                 \\
+    \textbf{Business}        & 999\$ (919€)              & 899\$ (827€)        & 499,5\$ (459,5€)            & 449,5\$ (413,6€)               \\
+    \textbf{Custom}          & A consultar                  & A consultar               & No aplicable                  & No aplicable                     \\
+}
+}%
+
+\subsubsection{Conclusión y estrategia de explotación económica}
+El funcionamiento financiero de Apify se basa en un modelo de créditos mensuales que caducan al terminar el ciclo de facturación; es decir, los créditos asignados que no se consumen en el mes corriente se pierden y no se acumulan para el siguiente mes. 
+
+Dado que el coste estimado de una actualización global de la provincia es de unos 400\$ de ejecución y que esta tarea no requiere ser ejecutada todos los meses (puesto que los datos de los puntos de interés son generalmente estables), contratar un plan fijo mensual normal como el \textit{Scale} (199\$) sería insuficiente para una carga completa, mientras que el plan \textit{Business} (999\$) generaría un gasto excesivo con créditos desperdiciados en los meses de inactividad del scraper.
+
+Por tanto, la estrategia ideal de explotación económica para la institución consiste en dos opciones:
+\begin{enumerate}
+    \item Intentar acordar un \textbf{Plan Custom} personalizado mediante un pago anual que asigne una bolsa de créditos global sin caducidad mensual, permitiendo consumir los créditos únicamente durante las campañas específicas de actualización del boletín.
+    \item Adoptar una estrategia bajo demanda con planes estándar, que consiste en dar de alta el Plan Business (999\$) (o 3 cuentas con un plan Scale para asegurar que cubran todos los costes) de forma puntual únicamente durante el mes en el que se decida realizar la actualización masiva de la provincia, y dar de baja la suscripción durante los meses de descanso del sistema.
+\end{enumerate}
+
+\subsection{Viabilidad legal}
+El marco legal de este proyecto se evalúa desde tres perspectivas fundamentales: la legitimidad de la extracción automatizada de datos públicos, el cumplimiento de la normativa de protección de datos personales y la gestión de las licencias del software utilizado.
+
+\subsubsection{Extracción de datos y propiedad intelectual}
+Respecto al \textit{web scraping} sobre Google Maps, es necesario señalar que las condiciones de servicio de la plataforma restringen la extracción automatizada de sus datos. Sin embargo, desde el punto de vista del derecho de propiedad intelectual, el sistema se ampara en la \textbf{Directiva (UE) 2019/790} sobre los derechos de autor en el mercado único digital \cite{directiva_copyright_2019}. Esta normativa introduce en sus artículos 3 y 4 una excepción legal para la \textbf{Minería de Textos y Datos (TDM)}, que permite la reproducción y extracción de obras de acceso legítimo en internet con fines de investigación y análisis estadístico, siempre que no tengan un propósito comercial y los titulares no hayan restringido explícitamente el acceso mediante archivos de exclusión como \textit{robots.txt}. 
+
+Por otra parte, la información estructural relativa a los municipios de la provincia de Burgos y sus cifras oficiales de población provienen del \textbf{Instituto Nacional de Estadística (INE)} \cite{ine_codmun}. El identificador único utilizado en el sistema (\textit{id\_municipality}) se corresponde exactamente con el Código de Municipio (CMUN) establecido por dicho organismo, garantizando el cumplimiento de los estándares nacionales de interoperabilidad. Asimismo, la vinculación geográfica de los códigos postales se asienta sobre un conjunto de datos consolidado de acceso abierto que mapea las correspondencias oficiales del INE y la Sociedad Estatal Correos y Telégrafos \cite{github_codigos_postales}. Al tratarse de registros administrativos de carácter público y libremente reutilizables para fines de análisis, su incorporación en el pipeline cuenta con plena validez legal.
+
+Dado que el pipeline realiza peticiones espaciadas que respetan la estabilidad de los servidores, no almacena código propietario y solo recopila datos de interés público (coordenadas, nombres comerciales y textos de opiniones), el riesgo de infracción legal es mínimo para un entorno analítico institucional.
+
+\subsubsection{Protección de datos personales (RGPD y LOPDGDD)}
+El tratamiento de los nombres de usuario y los textos de las reseñas se rige por el Reglamento General de Protección de Datos \textbf{(RGPD) Reglamento (UE) 2016/679} \cite{rgpd_2016} y la ley española \textbf{LOPDGDD 3/2018} \cite{lopdgdd_2018}. El proyecto cumple rigurosamente estas normativas mediante los siguientes principios de diseño:
+\begin{itemize}
+    \item \textbf{Interés legítimo y fines estadísticos:} El procesamiento se fundamenta en el \textbf{Artículo 6.1.f del RGPD}, que ampara el tratamiento necesario para la satisfacción de intereses legítimos (en este caso, la digitalización de la información turística de la provincia de Burgos), en combinación con el \textbf{Artículo 89 del RGPD}, el cual permite el tratamiento de datos personales con fines puramente estadísticos y de investigación.
+    \item \textbf{Minimización y disociación de datos:} El pipeline aplica el principio de minimización. No se extraen ni almacenan datos críticos como las fotografías de los perfiles ni los enlaces a los perfiles personales. El nombre de usuario que acompaña a la reseña se trata de forma disociada y puramente de texto, considerando que, en muchos casos, se trata de seudónimos públicos.
+    \item \textbf{Tratamiento agregado en la visualización:} En la herramienta Looker Studio no se realiza ningún tipo de perfilado individualizado ni toma de decisiones automatizadas sobre personas físicas. Si se realiza alguna estimación (como intentar identificar el género según el nombre de pila), se hace únicamente para obtener estadísticas agrupadas (por ejemplo, ver el porcentaje general de opiniones de hombres o mujeres en un monumento). En ningún momento se hacen perfiles individuales de personas reales.
+\end{itemize}
+
+\subsubsection{Gestión de licencias de software}
+Para garantizar la sostenibilidad del proyecto, se ha analizado la compatibilidad de las licencias del software integrado. El pipeline está construido utilizando componentes de código abierto con licencias permisivas que no imponen restricciones al producto final:
+\begin{itemize}
+    \item \textbf{Entorno de ejecución y dependencias:} El núcleo del sistema utiliza el lenguaje Python y librerías especializadas bajo licencias libres consolidadas en el sector tecnológico. Específicamente, los módulos de procesamiento de texto y traducción (\textit{pysentimiento} y \textit{deep-translator}) operan bajo la licencia MIT \cite{pypi_pysentimiento, pypi_deeptranslator}, mientras que los componentes críticos de infraestructura como el cliente oficial de Apify (\textit{apify-client}), la autenticación y los conectores cloud (\textit{google-cloud-bigquery}, \textit{google-auth}) están sujetos a la licencia Apache 2.0 \cite{pypi_apify, pypi_bigquery}. Asimismo, las dependencias de análisis de datos y utilidades (\textit{scikit-learn} y \textit{python-dotenv}) utilizan la licencia BSD de 3 cláusulas \cite{pypi_scikit}. Estas licencias permiten el uso, la modificación y la distribución del software sin generar incompatibilidades legales con el producto desarrollado.
+    \item \textbf{Licencia del proyecto:} El código fuente desarrollado en este Trabajo de Fin de Grado se libera bajo la \textbf{Licencia MIT}. Esta decisión asegura que la Universidad de Burgos o cualquier entidad pública interesada en el Boletín de Turismo pueda utilizar, auditar y mantener el sistema en el tiempo de forma completamente gratuita y legal, manteniendo la propiedad intelectual del autor original.
+\end{itemize}
+
+
+
+
+
+
