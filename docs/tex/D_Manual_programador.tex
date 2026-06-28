@@ -1,0 +1,681 @@
+\apendice{Documentación técnica de programación}
+
+\section{Introducción}
+Este anexo contiene la información técnica necesaria para instalar, configurar y mantener el código del pipeline ETL. Está dirigido a desarrolladores que necesiten comprender la arquitectura del software o introducir modificaciones en el flujo de datos.
+
+El proyecto está programado en Python y centraliza su lógica en la conexión con dos servicios externos: Google BigQuery, utilizado como almacén de datos persistente, y la API de Apify, empleada para realizar la extracción de los puntos de interés (POIs) y sus reseñas correspondientes.
+
+\section{Estructura de directorios y archivos}
+El repositorio está organizado dividiendo las distintas partes que forman el proyecto en carpetas fácilmente identificables. A continuación, se detalla el contenido de cada carpeta y el propósito de los archivos de la raíz.
+
+\subsection{Directorios del proyecto}
+
+\begin{itemize}
+    \item \ruta{.github/workflows/}: Contiene el archivo de configuración \ruta{run\_scraper.yml} en formato YAML para automatizar tareas mediante GitHub Actions, permitiendo lanzar el scraper de forma programada o manual cuando se requiera dentro del propio repositorio de GitHub.
+    \item \ruta{config/}: Almacena el archivo \ruta{config.json}, el cual centraliza toda la parametrización del pipeline sin necesidad de modificar el código fuente. Este fichero divide la configuración en bloques independientes que controlan las tablas de Google Cloud, las reglas de negocio (márgenes de días y umbrales de población), los filtros de ejecución manual y los parámetros de la API de Apify, la transformación de reseñas y los logs.
+    \item \ruta{database/}: En esta carpeta se almacenan todos los elementos necesarios para reconstruir la base de datos utilizada para el correcto funcionamiento del sistema. Estos son: el archivo SQL (\ruta{schema.sql}) con las sentencias de creación de las tablas en Google BigQuery y los tres archivos CSV utilizados para cargar los datos iniciales de municipios, categorías y códigos postales de los municipios que se deben insertar una vez creadas las tablas.
+    \item \ruta{docs/}: Almacena todos los archivos y recursos relacionados con la documentación técnica del TFG. Contiene la estructura completa del proyecto de Overleaf, incluyendo las imágenes (\ruta{img/}) y componentes individuales de la memoria y los anexos (\ruta{tex/}), así como sus propios ficheros fuente \texttt{.tex} y las bibliografías, así como los dos documentos finales ya generados en formato PDF.
+    \item \ruta{logs/}: Carpeta destinada al almacenamiento de los logs generados en cada ejecución (si así se ha requerido) con el histórico de las ejecuciones, guardados cronológicamente para facilitar la búsqueda de errores o revisar el comportamiento del scraper.
+    \item \ruta{src/}: Carpeta principal del código fuente en Python. Contiene los scripts encargados de ejecutar las fases del pipeline y una subcarpeta con utilidades comunes. La distribución exacta es la siguiente:
+    \begin{itemize}
+        \item En la raíz de \ruta{src/} se encuentran los siguientes módulos controladores:
+        \begin{itemize}
+            \item \ruta{main\_scraper\_pipeline.py}: Archivo principal que orquesta todo el flujo.
+            \item \ruta{apify\_extractor.py}: Módulo encargado de la extracción de datos desde la API.
+            \item \ruta{review\_transformer.py}: Script dedicado a la limpieza y transformación de las reseñas.
+            \item \ruta{bigquery\_loader.py}: Script responsable de la carga de datos en la base de datos.
+        \end{itemize}
+        \item \ruta{src/utils/}: Subcarpeta de componentes auxiliares compartidos por el resto de scripts, que contiene la inicialización del sistema de logs (\ruta{logger.py}) y la lectura del archivo de configuración JSON (\ruta{config\_loader.py}).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Archivos de la raíz}
+
+Los archivos situados en la raíz del repositorio se encargan del despliegue, la seguridad y las dependencias del sistema. Su ubicación en este nivel responde a los estándares de desarrollo y configuración, ya que las herramientas de control de versiones, contenerización y automatización buscan estos ficheros de forma predeterminada en el primer nivel del directorio para coordinar el entorno global.
+
+A continuación se detalla la función técnica de cada uno de ellos:
+
+\begin{itemize}
+    \item \ruta{.dockerignore}: Indica qué archivos y carpetas locales no se deben incluir dentro de la imagen de Docker para evitar que el contenedor pese más de lo necesario.
+    \item \ruta{.env}: Guarda las variables de entorno privadas. En este caso, el token de la API de Apify.
+    \item \ruta{.gitignore}: Lista de archivos y carpetas que no se quieren subir al repositorio de forma predeterminada por seguridad.
+    \item \ruta{Dockerfile}: Archivo con las instrucciones para construir la imagen de Docker del proyecto, definiendo el sistema operativo base y el entorno de Python.
+    \item \ruta{docker-compose.yml}: Configura el contenedor mapeando los archivos de credenciales (\ruta{.env} y \ruta{key.json}) como volúmenes dentro del contenedor e inyecta la variable de entorno necesaria para la autenticación de Google Cloud.
+    \item \ruta{key.json}: Archivo con las credenciales de la cuenta de servicio de Google Cloud necesarias para autenticar la conexión con BigQuery.
+    \item \ruta{LICENSE}: Especifica los términos legales de uso y distribución del código.
+    \item \ruta{README.md}: Presentación inicial del proyecto en la que se describe brevemente el objetivo, la arquitectura,  los requerimientos del proyecto y los créditos del autor.
+    \item \ruta{requirements.txt}: Lista de librerías de Python y sus versiones exactas requeridas para que el código funcione, agrupadas según su uso para la extracción, BigQuery, procesamiento de texto e infraestructura.
+\end{itemize}
+
+
+\section{Manual del programador}
+Este apartado sirve como guía técnica para explicar el funcionamiento interno del código fuente del proyecto. Aquí se detalla el ecosistema de herramientas, la lógica algorítmica del archivo principal \ruta{main\_scraper\_pipeline.py}, la interacción entre los diferentes módulos de la carpeta \ruta{src/} y las estrategias de optimización aplicadas en tiempo de ejecución.
+
+\subsection{Entorno de desarrollo}
+Para poder trabajar con el código fuente, mantener el sistema o realizar modificaciones, el programador debe estar familiarizado con el siguiente conjunto de herramientas, lenguajes y plataformas que componen el proyecto:
+\subsubsection{Herramientas de software y lenguajes}
+\begin{itemize}
+    \item \textbf{Python (v3.13):} Es el lenguaje de programación central del proyecto. Se encarga de coordinar todo el pipeline ETL, procesar las llamadas de las APIs, limpiar los datos y ejecutar los modelos de Inteligencia Artificial.
+    \item \textbf{SQL:} Lenguaje utilizado para interactuar con el almacén de datos de BigQuery. Se emplea dentro del código de Python para realizar las consultas de control, el filtrado de fechas y la fusión de registros mediante sentencias \texttt{MERGE}.
+    \item \textbf{Visual Studio Code:} Entorno de desarrollo integrado (IDE) recomendado para trabajar en el proyecto debido a su compatibilidad con las extensiones de Python, Docker y entornos virtuales.
+    \item \textbf{Git y GitHub:} Herramientas utilizadas para el control de versiones del código fuente, el almacenamiento del repositorio y la gestión del proyecto mediante su sistema de \textit{Issues}.
+    \item \textbf{\LaTeX{} / Overleaf:} Herramientas empleadas para la redacción, maquetación y compilación técnica de la documentación y las guías del proyecto.
+\end{itemize}
+
+\subsubsection{Infraestructura y automatización}
+\begin{itemize}
+    \item \textbf{Docker y Docker Compose:} Contenedor utilizado para empaquetar la aplicación con todas sus dependencias. Asegura que el scraper funcione exactamente igual en local que en el servidor, aislando el entorno de ejecución.
+    \item \textbf{GitHub Actions:} Plataforma de integración y despliegue continuo encargada de automatizar la ejecución del scraper de manera periódica en la nube en el tiempo programado. Esto se realiza a través del archivo \ruta{.github/workflows/run\_scraper.yml} que permite dos tipos de ejecuciones:
+    \begin{itemize}
+        \item \textbf{Ejecución manual (\texttt{workflow\_dispatch}):} Permite al programador entrar en la pestaña «Actions» del propio repositorio de GitHub y lanzar el pipeline de forma inmediata ejecutando el workflow, lo que es ideal para realizar pruebas de producción o actualizaciones de emergencia.
+        \item \textbf{Ejecución programada (\texttt{schedule - cron}):} Añadiendo el schedule con un cron, permite automatizar la ejecución del script en segundo plano utilizando el formato estándar de temporizadores de Unix (\textit{Cron Job}), compuesto por cinco campos: 
+        \begin{itemize}
+            \item \textbf{Minuto (0 - 59):} Minuto de la hora en el que se lanza.
+            \item \textbf{Hora (0 - 23):} Hora del día en formato de 24 horas. GitHub Actions trabaja siempre con la hora **UTC**.
+            \item \textbf{Día del mes (1 - 31):} Día concreto del mes en el que se desea ejecutar.
+            \item \textbf{Mes (1 - 12 o nombres de tres letras como \texttt{JAN-DEC}):} Mes en el que se quiere ejecutar.
+            \item \textbf{Día de la semana (0 - 7 o nombres como \texttt{SUN-SAT}):} Donde el \texttt{0} y el \texttt{7}) representan el domingo, el \texttt{1} el lunes, el \texttt{2} el martes, y así sucesivamente hasta el \texttt{6} (sábado).
+        \end{itemize}
+
+        Para todos los campos, se puede utilizar varios símbolos que permiten personalizar al detalle el tipo de automatización que queremos para el proyecto: El asterisco (\texttt{*}) significa «todos» (ej. todos los días de la semana); la coma (\texttt{,}) sirve para listar valores (ej. \texttt{1,3,5} para lunes, miércoles y viernes); el guion (\texttt{-}) define rangos (ej. \texttt{1-5} de lunes a viernes); y la barra (\texttt{/}) indica intervalos de repetición (ej. \texttt{*/2} para ejecutarse cada dos horas).
+    \end{itemize}
+    \item \textbf{BigQuery:} Almacén de datos en la nube de Google Cloud Platform (GCP) donde se aloja la base de datos definitiva del proyecto. 
+    El dataset está compuesto por seis tablas:
+    \begin{itemize}
+        \item \texttt{municipalities}: Contiene el listado oficial de los municipios de la provincia de Burgos, incluyendo sus datos demográficos (población) que el sistema utiliza para segmentar los entornos en rurales, semi-rurales o urbanos.
+        \item \texttt{categories}: Guarda la taxonomía o árbol jerárquico de categorías turísticas (clasificadas en varios niveles y su mapeo con las categorías nativas de Google Maps) que determina qué tipo de negocios debe buscar el scraper.
+        \item \texttt{pois}: Almacena los puntos de interés o establecimientos turísticos localizados, incluyendo toda la información relevante sobre cada uno de ellos que se extrae a través de Apify.
+        \item \texttt{reviews}: Contiene las reseñas con los datos más relevantes obtenidos y calculados sobre ellas.
+        \item \texttt{municipality\_postal\_codes}: Tabla de referencia que empareja cada municipio de la provincia con sus códigos postales válidos. Sirve como filtro de seguridad en la etapa de carga para descartar POIs que pertenezcan a otros municipios o provincias.
+        \item \texttt{scraper\_control}: Es la tabla que gestiona el control incremental del sistema. Almacena las marcas temporales de la última vez que se actualizó con éxito cada combinación de municipio y categoría, permitiendo al pipeline saber qué trabajo ya está al día para poder saltárselo si se reinicia el programa.
+    \end{itemize}
+    \item \textbf{Looker Studio:} Herramienta de visualización de datos conectada automáticamente a BigQuery, actualizándose de manera autónoma al producirse cambios en la base de datos.
+\end{itemize}
+
+\subsubsection{APIs e integraciones externas}
+El pipeline depende de dos conexiones externas clave que requieren credenciales de autenticación privadas para funcionar:
+\begin{itemize}
+    \item \textbf{Apify API:} Interfaz que permite invocar desde el código de Python el actor de Apify que realiza las búsquedas en Google Maps, delegando en esta plataforma la extracción masiva de POIs y reseñas.
+    \item \textbf{Google Cloud Credentials (archivo \texttt{key.json}):} Archivo de claves en formato JSON que contiene los tokens de la cuenta de servicio de Google Cloud. Es imprescindible para que el código de Python pueda autenticarse de forma segura y realizar lecturas o escrituras en BigQuery.
+\end{itemize}
+
+\subsection{Componentes de utilidad (\ruta{src/utils/})}
+Estos componentes no ejecutan ninguna fase del pipeline de forma directa, sino que actúan como herramientas de soporte compartidas que utilizan todos los demás scripts del sistema para centralizar la configuración y controlar los registros.
+
+\subsubsection{Lector de configuración: \ruta{config\_loader.py}}
+Este script es el encargado de leer el archivo centralizado \ruta{config/config.json} y convertirlo en un diccionario global de Python llamado \texttt{settings}.
+
+Utiliza un método de clase para comprobar si la configuración ya ha sido cargada previamente en memoria. Gracias a esto, el archivo físico del disco solo se lee una vez al arrancar el programa. Si otros módulos del pipeline vuelven a importar las \texttt{settings}, el script les devuelve directamente el diccionario que ya está en memoria, ahorrando operaciones de lectura.
+
+Si el archivo de configuración no existe en la ruta indicada o contiene un error de sintaxis en su formato, el script captura las excepciones correspondientes y lanza un aviso crítico que detiene el sistema, evitando que el pipeline funcione a ciegas.
+
+\subsubsection{Gestor de logs: \ruta{logger.py}}
+Este componente configura el sistema de registros de Python para monitorizar en tiempo real todo lo que ocurre en el pipeline, sustituyendo el uso de comandos simples de pantalla por un sistema estructurado de logs.
+
+En primer lugar, extrae las opciones del bloque \texttt{logging\_params} del JSON de configuración para aplicar el nivel de detalle seleccionado (como \texttt{INFO} o \texttt{DEBUG}) y definir el formato de texto de los mensajes, que incluye la hora exacta, el archivo y la línea de código donde salta el aviso.
+
+El logger permite generar una salida de mensajes simultáneamente en dos destinos:
+\begin{itemize}
+    \item \textbf{Consola:} Muestra los mensajes en la terminal en tiempo real durante la ejecución.
+    \item \textbf{Archivo físico:} Si está activado en la configuración, genera un archivo de texto en la carpeta \ruta{logs/}. Para que sea único y fácilmente reconocible, nombra el archivo con la fecha y hora exactas del arranque. La escritura en el archivo de texto físico se fuerza explícitamente con codificación \texttt{utf-8}, porque las reseñas turísticas descargadas suelen contener tildes, caracteres extranjeros y emoticonos que harían fallar el programa si se utilizara la codificación por defecto.
+\end{itemize}
+
+Antes de generar los canales de salida, comprueba que no se hayan creado ya para evitar que, al importar el logger en los diferentes scripts del proyecto, los mensajes se dupliquen o tripliquen en la pantalla de la terminal y en el archivo de texto.
+
+
+\subsection{Configuración del sistema (\ruta{config/config.json})}
+El comportamiento entero del pipeline se gestiona desde un único archivo centralizado en formato JSON. Al aislar estas variables en un archivo JSON en la raíz, se garantiza la portabilidad del sistema y se permite modificar el comportamiento del scraper o las credenciales de BigQuery de forma inmediata sin necesidad de alterar una sola línea del código fuente en Python.
+
+Es fundamental no dejar en blanco ningún campo operativo del archivo \ruta{config.json} (salvo los selectores de filtrado que admitan cadenas vacías que se indiquen expresamente en este manual) para asegurar el correcto funcionamiento del pipeline y evitar excepciones por valores nulos en tiempo de ejecución.
+
+A continuación, se detallan todos los parámetros disponibles estructurados por sus bloques operativos:
+
+\begin{itemize}
+    \item \textbf{\texttt{google\_cloud}:}
+    Centraliza las credenciales de conexión con la infraestructura de Google Cloud Platform (BigQuery).
+    \begin{itemize}
+        \item \texttt{credentials\_file}: Nombre del archivo de clave privada en formato JSON (\ruta{key.json}) que contiene el token de la cuenta de servicio (SA) de Google Cloud para poder conectarse a BigQuery.
+        \item \texttt{project\_id} y \texttt{dataset\_id}: Identificadores del proyecto y del conjunto de datos en BigQuery de Google Cloud Platform (ej. \texttt{tfg-boletin-turismo-burgos} y \texttt{ds\_turismo\_reviews}).
+        \item \texttt{tables}: Diccionario que mapea los nombres físicos de las 6 tablas del sistema (\texttt{municipalities}, \texttt{categories}, \texttt{pois}, \texttt{reviews}, \texttt{scraper\_control} y \texttt{municipality\_postal\_codes}). Si los nombres cambian en la base de datos, basta con actualizarlos aquí.
+    \end{itemize}
+    
+    \item \textbf{\texttt{tori\_logic}:}
+    Establece los topes numéricos para calibrar el algoritmo del Índice de Reputación Online Turística. Permite personalizar la escala y el peso de cada puntuación, partiendo desde un mínimo de 0, siendo el máximo TORI total la suma de ambos máximos.
+    \begin{itemize}
+        \item \texttt{max\_score\_rating}: Puntuación máxima o factor de ponderación asignado a la valoración media de Google Maps. (Ej. Si se pone 5 significa que la escala será de 0 a 5 y si se pone 10 será de 0 a 10 el valor que aportará al TORI total).
+        \item \texttt{max\_score\_sentiment}: Puntuación máxima o factor de ponderación asignado al análisis de sentimiento por IA de los textos (Funciona de la misma manera).
+        \item \textit{Ejemplo de configuración:} Si se quiere dar más peso al sentimiento frente a la valoración media de Maps y usar una escala sobre 100, se puede configurar el rating en 40 y el sentimiento en 60, ofreciendo un rango de TORI final de $[0,100]$.
+    \end{itemize}
+    
+    \item \textbf{\texttt{scraper\_logic}:}
+    Define las reglas de negocio esenciales del scraper incremental y los criterios de segmentación demográfica.
+    \begin{itemize}
+        \item \texttt{margin\_days\_update\_pois}: Número de días que determina la caducidad de un punto de interés (POI). Si el tiempo transcurrido desde su última extracción supera este margen, el pipeline vuelve a invocar a Apify para actualizar los sitios del municipio o categoría. Si está dentro del margen, el bucle lo salta para ahorrar costes de API.
+        \item \texttt{margin\_days\_update\_reviews}: Número de días que determina la necesidad de ampliar las reseñas de un POI. Si los días transcurridos desde la última actualización del campo correspondiente (municipio o POI) superan este margen, el pipeline vuelve a invocar a Apify para extraer nuevas reseñas del POI. Si está dentro del margen, el bucle lo salta para ahorrar costes de API.
+        \item \texttt{postal\_code\_prefix}: Prefijo numérico de la provincia (ej. \texttt{"09"} para Burgos) utilizado como filtro de seguridad para descartar sitios de otras regiones que se cuelen por error en las búsquedas.
+        \item \texttt{location\_province}: Cadena de texto que indica la provincia y el país en la que se pretende ejecutar el scraper (ej. \texttt{"Burgos, España"}) para evitar ambigüedades con municipios homónimos en otras regiones.
+        \item \texttt{muni\_threshold\_rural} y \texttt{muni\_threshold\_semi\_rural}: Límites numéricos de población (habitantes) utilizados para segmentar los municipios en tres entornos de forma dinámica:
+        \begin{itemize}
+            \item \textbf{Rural:} Población $\le$ \texttt{muni\_threshold\_rural}.
+            \item \textbf{Semi-rural:} \texttt{muni\_threshold\_rural} $<$ Población $\le$ \texttt{muni\-\_threshold\_semi\_rural}.
+            \item \textbf{Urbano:} Población $>$ \texttt{muni\_threshold\_semi\_rural}.
+        \end{itemize}
+    \end{itemize}
+    
+    \item \textbf{\texttt{execution\_filters}:}
+    Filtros avanzados orientados al control del flujo incremental, optimización de costes de la API y depuración ágil en local. La combinación de los parámetros de este bloque altera de forma directa el flujo algorítmico del pipeline, dando lugar a los diferentes modos de ejecución del sistema que se detallan en su apartado correspondiente.
+    \begin{itemize}
+        \item \texttt{target\_municipality} / \texttt{target\_category} / \texttt{target\_poi}: Cadenas de texto que actúan como selectores restrictivos para acotar la ejecución. Por defecto se configuran como un \textit{string} vacío ("\texttt{""}") para que el pipeline procese de forma masiva e incremental toda la provincia. Si se introduce un valor en alguna de las tres, este debe coincidir exactamente con el nombre almacenado en la base de datos para realizar el filtrado (ej. \texttt{"Miranda de Ebro"}, \texttt{\char`\"Estación de tren"} o \texttt{\char`\"Cervecería Morito"}).
+        \item \texttt{order\_municipalities\_by} / \texttt{order\_categories\_by} / \texttt{order\-\_pois\_by}: Cláusulas de ordenación nativas en formato SQL que determinan la prioridad de recorrido de los bucles de ejecución del pipeline. Se deben escribir nombres de las columnas que coincidan exactamente con uno de los campos de la tabla que se está ordenando (si es de \texttt{municipalities}, usar una de sus columnas: \texttt{id\_municipality}, \texttt{name}, \texttt{population}...). Ejemplos: \texttt{"population ASC"} / \texttt{"popula\-tion DESC"}: Para priorizar la extracción por municipios según su tamaño demográfico. \texttt{"name ASC"} / \texttt{\char`\"id\_municipality ASC"}: Para un barrido alfabético o numérico secuencial estricto y previsible.
+    \end{itemize}
+
+    \item \textbf{\texttt{apify\_params}:}
+    Variables de configuración técnica requeridas por la API de Apify para modular el comportamiento de los web scrapers en la nube.
+    \begin{itemize}
+        \item \texttt{poi\_actor}: Nombre del actor de Apify encargado del rastreo de lugares (ej. \texttt{\char`\"compass/crawler-google-places"}).
+        \item \texttt{reviews\_actor}: Nombre o ruta del actor encargado de scrapear las reseñas (ej. \texttt{\char`\"compass/google-maps-reviews-scraper"}). Ambos campos permiten modificar el nombre de los actores de forma inmediata ante un posible cambio de nombre en Apify.
+        \item \texttt{max\_retries}: Número máximo de reintentos automáticos permitidos ante un fallo técnico momentáneo o un código de estado HTTP erróneo de la API de Apify.
+        \item \texttt{retry\_wait\_seconds}: Tiempo de parada o latencia (en segundos) que el script esperará entre reintento y reintento.
+        \item \texttt{language} y \texttt{country\_code}: Códigos internacionales estandarizados en formato ISO (\texttt{\char`\"es"}) para forzar a la interfaz de Google Maps a devolver los textos adaptados al lenguaje de destino indicado. En el caso del código del país es para realizar la extracción en el país indicado.
+        \item \texttt{reviews\_start\_date}: Tiempo desde el que se quiere extraer reseñas de los POIs almacenados en la base de datos. Se puede establecer en horas, días o meses. Ej. \texttt{"1 month"} extraerá todas las reseñas de cada POI que se hayan publicado en el último mes.
+        \item \texttt{reviews\_sort}: Criterio de ordenación de las reseñas en el origen de Google Maps.
+        \begin{itemize}
+            \item \texttt{"newest"}: Trae primero las reseñas más recientes (ideal para actualizaciones incrementales rápidas).
+            \item \texttt{"most\_relevant"}: Trae primero las reseñas con más interacciones o interacciones valoradas por los usuarios de Google.
+            \item \texttt{"highest\_rating"} / \texttt{"lowest\_rating"}: Ordena por la polaridad de las estrellas.
+        \end{itemize}
+        \item \texttt{reviews\_origin}: Canal de procedencia de las reseñas. Se puede establecer que solo extraiga reseñas de Google \texttt{"google"} o que además de Google provengan de cualquier otra página como Tripadvisor, etc. \texttt{\char`\"all"}(fijado por defecto en \texttt{"google"} para asegurar reseñas verificadas).
+    \end{itemize}
+
+    \item \textbf{\texttt{transformer\_params}:}
+    Reglas de limpieza, preprocesamiento y validación aplicadas por el pipeline de Python sobre las reseñas extraídas antes de enviarlas a BigQuery.
+    \begin{itemize}
+        \item \texttt{min\_review\_words}: Umbral numérico de calidad (longitud de cadena). Si una reseña contiene menos palabras de las especificadas (ej. \texttt{8}), se descarta automáticamente. Esto filtra comentarios vacíos o poco informativos (como \textit{"Bien"} o un emoticono) garantizando un dataset de calidad de cara al análisis de sentimiento.
+        \item \texttt{target\_lang}: Código de idioma de destino (\texttt{\char`\"es"}). Todas las reseñas extraídas se traducirán a este idioma antes de almacenarlas en la base de datos. Igualmente, en la base de datos se guardan tanto la versión original como la traducida.
+        \item \texttt{default\_user\_name}, \texttt{default\_user\_gender}, \texttt{default\_review\-\_lang}: Ej. \texttt{\char`\"Anónimo"} para el nombre del usuario y \texttt{"Desconocido"} para el género del autor e idioma de la reseña. Palabras que el script inyectará en las columnas correspondientes de la tabla de reseñas en caso de que la API recolecte campos nulos, corruptos o perfiles de usuario privados.
+    \end{itemize}
+
+    \item \textbf{\texttt{logging\_params}:}
+    Controla el comportamiento del sistema de monitorización visual por consola.
+    \begin{itemize}
+        \item \texttt{log\_level}: Nivel mínimo de severidad técnica que el logger capturará, pintará en pantalla y guardará en el archivo \ruta{.log}.
+        \begin{itemize}
+            \item \texttt{"DEBUG"}: Muestra trazas detalladas de variables y flujos internos.
+            \item \texttt{\char`\"INFO"}: Muestra el flujo informativo normal de ejecución del pipeline.
+            \item \texttt{"WARNING"}: Filtra todo excepto advertencias de rendimiento o anomalías no críticas.
+            \item \texttt{\char`\"ERROR"}: Muestra únicamente excepciones que interrumpen o cuelgan módulos concretos del pipeline.
+        \end{itemize}
+        \item \texttt{log\_to\_file}: Variable booleana (\texttt{true} o \texttt{false}) que activa o desactiva la clonación de las trazas de la consola en un archivo de texto físico.
+        \item \texttt{log\_format}: Máscara estructural con marcadores de posición nativos de Python que define el diseño visual exacto de cada línea del log (el formato por defecto contiene marcas de tiempo, etiquetas de severidad, nombre del script de origen, número de línea exacto donde ocurrió el evento y el mensaje descriptivo).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Flujo general del sistema (Algoritmo ETL)}
+Una vez descrito el entorno de desarrollo, las utilidades de control y las amplias posibilidades de configuración y modos de ejecución que ofrece el sistema, es el momento de detallar el núcleo algorítmico del proyecto.
+
+El sistema funciona como un pipeline secuencial coordinado por el script \ruta{main\_scraper\_pipeline.py}. El objetivo principal del código es automatizar las fases de extracción, transformación y carga (ETL: Extract, Transform, Load), controlando en todo momento cualquier posible fuga de recursos y optimizando los costes tanto de tiempo de ejecución como económicos. Para la integración del flujo se importan los tres módulos especializados desarrollados en el proyecto:
+
+\subsubsection{Módulo de extracción: \ruta{apify\_extractor.py}}
+Este módulo centraliza la conexión con la API de Apify. Su objetivo es recibir las peticiones de búsqueda desde el main, darles el formato de entrada adecuado que exige Apify y descargar los resultados. El script utiliza el token del archivo \ruta{.env} para inicializar el cliente \texttt{ApifyClient} y lee los identificadores de los actores desde el bloque \texttt{apify\_params} de la configuración. 
+
+Un actor es un microservicio de la nube de Apify especializado en realizar una tarea de computación o extracción de datos de una web concreta. El pipeline interactúa con dos actores oficiales de la plataforma: uno para el descubrimiento de puntos de interés y la obtención de toda la información posible sobre cada uno de ellos y otro especializado en la extracción profunda de reseñas de un POI dado.
+
+El flujo de comunicación entre el script y Apify sigue el siguiente esquema:
+\begin{enumerate}
+    \item El código empaqueta las credenciales y los filtros operativos en un objeto JSON estructurado (el \texttt{run\_input}) que define los límites de la búsqueda.
+    \item Al invocar el método \texttt{call()}, el cliente levanta una instancia del actor en los servidores de Apify. Este ejecuta de forma autónoma la navegación y extracción web sobre Google Maps utilizando la infraestructura de la plataforma.
+    \item Una vez finalizado el proceso con éxito, el Actor deposita los resultados en un dataset propio de Apify. El script realiza una petición de lectura incremental mediante un iterador para descargar los datos y devolverlos al main.
+\end{enumerate}
+
+El módulo cuenta con dos funciones principales:
+\begin{itemize}
+    \item \texttt{fetch\_pois\_from\_apify}: Se encarga de extraer los puntos de interés con toda su información. Como regla técnica de optimización, la función construye el diccionario de entrada (\texttt{poi\_input}) de dos formas distintas según el tamaño del municipio:
+    \begin{itemize}
+        \item \textbf{Para municipios de nivel 3 (ciudades):} Añade el parámetro \texttt{locationQuery}, que divide el municipio en pequeñas áreas para hacer una búsqueda exhaustiva de POIs en cada zona. Esto es necesario porque con el flujo normal del bucle simple de categorías no es suficiente, ya que tiene una limitación de 20 POIs por extracción, siendo insuficiente para determinadas categorías que en las grandes ciudades pueden superar esa cifra de POIs en todo el municipio.
+        \item \textbf{Para municipios de nivel 1 y 2 (rurales o semi-rurales):} Se pasa únicamente la cadena de búsqueda (\texttt{searchStringsArray}), que contiene la categoría y el municipio, porque con eso es suficiente para encontrar los puntos de interés de este tipo de municipios realizando ese flujo predeterminado.
+    \end{itemize}
+    
+    \item \texttt{fetch\_reviews\_from\_apify}: Se encarga de extraer las reseñas de un POI concreto. Construye un diccionario de entrada (\texttt{rev\_input}) donde genera una URL de inicio dinámica utilizando el identificador del lugar (\texttt{poi\_id}) que se le pasa al actor para que obtenga las reseñas. Configura parámetros clave de la API como la fecha de inicio de las reseñas que queremos capturar, el idioma y el orden de preferencia de las reseñas (\texttt{reviewsSort}).
+\end{itemize}
+
+
+En ambas funciones, el código controla el número de intentos mediante la variable \texttt{attempt} hasta alcanzar el límite máximo configurado (\texttt{MAX\_RETRIES}). Si la llamada al actor de Apify falla por microcortes de internet o saturación de la API, el script captura la excepción, emite un aviso de advertencia en los logs y suspende la ejecución durante unos segundos fijados en la configuración mediante un \texttt{time.sleep()}. Si tras agotar todos los intentos el error persiste, la función lanza una excepción definitiva hacia el main principal indicando que el proceso técnico de ese bloque ha fallado.
+
+\subsubsection{Módulo de transformación: \ruta{review\_transformer.py}}
+Este componente concentra toda la carga analítica del pipeline a nivel de datos. Su función no es conectarse a servicios en la nube, sino recibir de forma individual las reseñas que extrae Apify para limpiarlas, traducirlas y enriquecerlas mediante modelos de Inteligencia Artificial antes de guardarlas en BigQuery.
+
+Al inicializar el módulo, el script arranca en memoria dos analizadores globales reutilizables usando la configuración: el motor de análisis de sentimiento (\texttt{sentiment\_analyzer}) y el detector de género por nombre (\texttt{gender\_detector}).
+
+El comportamiento de su función principal se detalla a continuación:
+\begin{itemize}
+    \item \textbf{Filtro de longitud mínima:} Cuenta el número de palabras del comentario. Si la reseña viene vacía o tiene menos palabras que el mínimo configurado (por ejemplo, menos de 8 palabras), el script la descarta devolviendo un \texttt{None}. Esto evita almacenar texto que no aporta valor analítico (como simples exclamaciones o emoticonos).
+    \item \textbf{Limpieza de texto:} Elimina los saltos de línea (\texttt{\textbackslash n} y \texttt{\textbackslash r}) para dejar el texto en una sola frase limpia. Además, borra las etiquetas automáticas que inyecta Google Maps cuando el usuario lee una reseña traducida.
+    \item \textbf{Detección de idioma y traducción:} Utiliza la librería \texttt{langdetect} para adivinar el idioma real del texto escrito. Si detecta que no está en el idioma solicitado en la configuración, invoca a \texttt{deep-translator} de Google para traducirlo, manteniendo en la base de datos tanto el texto traducido como el texto limpio original.
+    \item \textbf{Detección de género:} Extrae el primer nombre del autor de la reseña y lo pasa por la librería \texttt{gender-guesser}. Si el resultado contiene la palabra \textit{"male"} lo clasifica como \textit{"Masculino"}, si contiene \textit{"female"} como \textit{"Femenino"}, y si es ambiguo o una empresa, le asigna un valor por defecto (\textit{"Desconocido"}).
+    \item \textbf{Análisis de sentimiento por IA:} Envía el texto traducido al modelo predictivo de la librería \texttt{pysentimiento}. Este clasifica la opinión dando valores de 0 a 1 a las siguientes etiquetas(\texttt{POS}, \texttt{NEU} o \texttt{NEG}), sumando 1 en total. El script con esos datos realiza un cálculo matemático restando la probabilidad de que sea negativo a la probabilidad de que sea positivo:
+    $$p_{\text{score}} = P(\text{POS}) - P(\text{NEG})$$
+    Esto genera una nota continua en un rango exacto de $[-1, 1]$ que mide con precisión matemática el grado de satisfacción del autor de la reseña.
+\end{itemize}
+
+Por último, todos estos datos calculados y limpios se devuelven al main en un diccionario estructurado con todos los datos de la reseña que se van a guardar en la tabla de reseñas. Las claves de este diccionario deben
+coincidir exactamente con el nombre y el tipo de dato de las columnas de la
+tabla de BigQuery.
+
+\subsubsection{Módulo de carga: \ruta{bigquery\_loader.py}}
+Este componente centraliza todas las comunicaciones con la base de datos de BigQuery. Su función es recibir los datos ya limpios desde el main y guardarlos en la nube.
+
+Al arrancar, el módulo busca el archivo con la clave de GCP \ruta{key.json}. Si no lo encuentra, el programa escribe un aviso crítico en los logs y se detiene por completo para evitar realizar llamadas en balde a Apify.
+
+Sus funciones principales son las siguientes:
+
+\begin{itemize}
+    \item \texttt{execute\_query}: Envía cualquier consulta SQL directamente a BigQuery y devuelve los resultados.
+    
+    \item \texttt{get\_postal\_codes}: Descarga la lista de códigos postales permitidos para el municipio que se esté procesando. Guarda estos datos en un conjunto y lo devuelve al main para que el filtro geográfico de la Fase A compruebe si el POI pertenece o no al municipio.
+    
+    \item \texttt{get\_last\_stored\_review\_id}: Busca en la base de datos la reseña más reciente que tengamos guardada de ese local y devuelve su ID con el fin de parar el guardado de reseñas en la base de datos al encontrarla (ya que se extraen en orden temporal) en el caso de que se ajuste en la configuración un tiempo de extracción de reseñas muy conservador para evitar que se pierda alguna, superando el tiempo de la última ejecución del scraper y, por lo tanto, extrayendo reseñas que ya se tienen almacenadas.
+    
+    \item \texttt{run\_merge\_query}: Es la función encargada de guardar los datos en BigQuery. Utiliza un \texttt{MERGE} que compara la tabla temporal con la tabla definitiva. La decisión de utilizar un MERGE mediante tablas temporales en lugar de INSERT o UPDATE se debe a que en lugar de ir comprobando los datos uno a uno desde Python (lo que obligaría a hacer cientos de consultas lentas y costosas a los servidores de Google preguntando si cada ID ya existe), el sistema utiliza una estrategia optimizada:
+    \begin{itemize}
+        \item El script junta todos los datos y crea una tabla temporal en BigQuery para subirlos todos de una vez.
+        \item Se lanza la sentencia \texttt{MERGE} para que BigQuery cruce ambas tablas en sus servidores. En una sola operación, actualiza los locales que ya existían e inserta los nuevos.
+        \item El script borra inmediatamente la tabla temporal al terminar la fusión para no dejar residuos en la nube.
+    \end{itemize}    
+        
+    \item \texttt{update\_poi\_tori}: Ejecuta una consulta para calcular automáticamente el TORI (\textit{Tourism Online Reputation Index} o Índice de Reputación Online Turística) del punto de interés combinando la nota de valoración de estrellas de Google Maps y el análisis de sentimiento de las reseñas.
+    
+    Estas puntuaciones vienen dadas en escalas diferentes: las estrellas van de 1 a 5 (amplitud de 4 puntos) y el sentimiento va de -1 a 1 (amplitud de 2 puntos). Para que ambas estén en la misma escala, el script realiza un escalado automático basándose en los topes fijados en la configuración (\texttt{max\_score\_rating} y \texttt{max\_score\_sentiment}).
+
+    \begin{itemize}
+        \item Los dos números indicados en la configuración representan el total de puntos que se le quiere dar a cada parte, permitiendo darle más importancia a una o a la otra y siempre escalando ambas puntuaciones para que el mínimo sea 0 en ambas y sea más fácil de ver y de comparar. 
+        \begin{itemize}
+            \item Ejemplo: Si a la valoración de Maps se le pone 7 y a la otra 3 la escala del TORI sería [0,10], pero dándole un 70\% de importancia a la puntuación de Maps y solo un 30\% al cálculo de sentimiento. Además de eso, el total del TORI va a ser la suma de ambas, por lo que se puede hacer una escala, por ejemplo, sobre 100 si así se requiere, indicando en los campos de la configuración una combinación de números que sume 100 (Ej: 50 y 50), dando un total de TORI de [0,100].
+        \end{itemize}
+        \item El programa calcula en tiempo de ejecución las constantes \texttt{krating} (dividiendo el tope de valoración de Maps deseado entre 4, por la amplitud original de 4 puntos [1,5]) y \texttt{ksentiment} (dividiendo el tope de valoración de sentimiento deseado entre 2, por la amplitud original de 2 puntos [-1,1]). 
+        \item A la nota de valoración media del POI de Google Maps (\texttt{poi\_total\-\_rating}) se le resta 1 para llevarla a base cero (haciendo que pase de un rango de 1-5 a un rango de 0-4) y se multiplica por su constante que ampliaría la escala al valor deseado en la configuración.
+        \item Paralelamente, se calcula la media de los sentimientos de todas las reseñas del POI y se le suma 1 para eliminar los valores negativos (haciendo que pase de un rango de -1 a 1 a un rango de 0-2) y se multiplica por su constante que, de la misma forma, ampliaría la escala al valor deseado en la configuración.
+    \end{itemize}
+    
+    La fórmula matemática definitiva que ejecuta la consulta de BigQuery de forma directa en el servidor es la siguiente:
+    $$ \text{tori\_score} = \left( k_{\text{rating}} \times (\text{poi\_total\_rating} - 1) \right) + $$
+    $$ \left( k_{\text{sentiment}} \times (\text{AVG}(\text{sentiment\_score}) + 1) \right) $$
+
+    Gracias a este diseño, el programador puede cambiar la escala o el rango final del TORI en cualquier momento simplemente tocando los topes en el archivo de configuración, sin necesidad de modificar ni una sola línea de código de la consulta SQL.
+\end{itemize}
+
+
+\subsection{main\_scraper\_pipeline.py: Estructura de datos inicial y parámetros de control}
+Al arrancar, el main lee el diccionario global \texttt{settings} importado desde \ruta{config\_loader.py} y mapea las variables de configuración en bloques operativos:
+\begin{itemize}
+    \item \texttt{s\_logic}: Controla los umbrales de población, los días de margen para que se deban realizar o no las actualizaciones y las constantes geográficas.
+    \item \texttt{g\_tables}: Guarda los nombres exactos de las tablas de BigQuery.
+    \item \texttt{filters}: Contiene los filtros de ejecución manual utilizados por el desarrollador para realizar pruebas controladas.
+    \item \texttt{dataset\_path}: Define la ruta absoluta del conjunto de datos en la nube combinando el ID del proyecto y el ID del dataset de BigQuery.
+\end{itemize}
+
+Después, el script define la función auxiliar \texttt{get\_muni\_level(population)}. Este método segmenta el nivel de búsqueda del municipio en tres categorías en función de sus habitantes para optimizar las consultas y controlar los costes de la API: nivel 1 (Rural), nivel 2 (Semi-urbano) y nivel 3 (Urbano). Esta división se puede configurar estableciendo el límite de habitantes para cada categoría en el archivo de configuración.
+
+\subsection{main\_scraper\_pipeline.py: Flujo principal (\texttt{run\_scraper()})}
+El método principal \texttt{run\_scraper()} ejecuta un ciclo cerrado estructurado en bloques de inicialización, descubrimiento de POIs y extracción de reseñas.
+
+\subsubsection{Inicialización y carga de taxonomía}
+El programa calcula la fecha actual del sistema y recupera de la configuración los días de margen de actualización (\texttt{margin\_days\_poi} y \texttt{margin\_days\-\_reviews}). A continuación, realiza la descarga inicial de datos:
+\begin{enumerate}
+    \item \textbf{Consulta de municipios:} Si el filtro \texttt{target\_municipality} está vacío, se lanza una consulta SQL a BigQuery que extrae todos los municipios pendientes (aquellos cuyo marcador de actualización en la base de datos sea nulo o haya superado el margen de días establecido en la configuración). Si el filtro contiene el nombre de un municipio, la consulta se limita exclusivamente a este para obtener los resultados únicamente del municipio requerido.
+    \item \textbf{Mapeo de taxonomía:} Se descarga la tabla de categorías para construir en memoria un diccionario asociativo llamado \texttt{taxonomy} (\texttt{\{maps\_category: id\_category\}}) con el objetivo de asociar cada categoría oficial de Google Maps a un estándar propio y estructurado por niveles turísticos en la base de datos.
+\end{enumerate}
+
+
+\subsubsection{Fase A: Descubrimiento de puntos de interés (POIs)}
+Una vez realizada la configuración inicial, el main inicia el bucle principal que recorre la lista de municipios pendientes uno a uno. Para cada localidad, el script realiza las siguientes comprobaciones y preparaciones antes de llamar a la API externa:
+
+\begin{itemize}
+    \item Se realiza una petición a \texttt{loader.get\_postal\_codes()} pasando el ID del municipio para descargar su lista de códigos postales permitidos asociados a dicho municipio, con el fin de descartar posteriormente los POIs extraídos cuyos códigos postales no se correspondan con ninguno de los permitidos.
+    \item El script evalúa si el municipio necesita actualizar su catálogo de POIs. Solo se accede a la Fase A si no se ha establecido en la configuración un único punto de interés concreto (No se quieren buscar POIs si no las reseñas de ese POI) y si la última actualización del municipio correspondiente es nula o ha superado el margen de días sin actualizarse.
+    \item El sistema realiza una consulta a la tabla \texttt{scraper\_control} para extraer la lista de categorías que ya han sido buscadas en el plazo estimado para este municipio y, de nuevo, evitar costes innecesarios.
+    \item Llama a la función auxiliar para obtener el nivel del municipio (\texttt{muni\-\_level}) según su volumen de población. A continuación, descarga desde BigQuery las categorías turísticas cuyo nivel de búsqueda sea igual o inferior al del municipio. Si el desarrollador ha especificado una categoría concreta en \texttt{target\_category}, la consulta SQL se restringe únicamente a esa categoría, realizando una sola búsqueda en el municipio.
+\end{itemize}
+
+Con la lista de categorías filtrada para el municipio en cuestión, se inicia el segundo bucle interno que irá realizando la búsqueda categoría a categoría, construyendo la search\_query que se le va a pasar a Apify para que realice la búsqueda delegando la tarea en el método del extractor  \texttt{fetch\_pois\_from\_apify()} que construye el input correspondiente y devuelve el listado de POIs que ha obtenido Apify para esa búsqueda.
+
+Una vez que el módulo extractor devuelve la lista, el orquestador inicia un tercer bucle interno para procesar cada elemento de forma individual. Durante esta iteración, se aplican varios filtros de depuración antes de dar por válido el punto de interés:
+
+\begin{itemize}
+    \item \textbf{Filtro de marcador genérico:} El script limpia el título del establecimiento y lo compara con el nombre del municipio. Si coinciden exactamente (o incluyen el sufijo \textit{", Burgos"}), el elemento se descarta, evitando almacenar los marcadores geográficos genéricos que genera Google Maps (uno por municipio solo con el nombre del pueblo que no es un POI real).
+    \item \textbf{Sin código postal:} En caso de que el campo del código postal venga vacío desde la API, el script busca dentro de la dirección de texto si aparece alguno de los códigos postales autorizados del municipio. Si lo encuentra, lo rescata y lo asigna al registro de forma automática.
+    \item \textbf{Validación de localización estricta:} El programa comprueba si el código postal definitivo del establecimiento se encuentra en la lista de permitidos del municipio y, si no lo está, lo descarta. En caso de que el municipio no tuviera códigos postales registrados en la base de datos, se aplica un filtro genérico para asegurar que el código postal comience por el prefijo de la provincia.
+    \item \textbf{Gestión de categorías:} Comprueba si la categoría devuelta por Google Maps ya existe en el diccionario de taxonomía. Si es una categoría nueva, inserta la nueva fila en la tabla de categorías, agregándola en el nivel de turismo que se esté buscando en ese momento (por probabilidad de similitud) y actualiza el diccionario en memoria para no repetir la operación.
+\end{itemize}
+
+Una vez que el lugar ha superado todos los filtros, el script se encarga de organizar su información. El objetivo en este punto es coger los datos del JSON que devuelve Apify (que vienen con listas y subcarpetas internas) y guardarlos en un diccionario plano. Las claves de este diccionario deben coincidir exactamente con el nombre y el tipo de dato de las columnas de la tabla de BigQuery.
+
+Finalmente, para completar la Fase A el script realiza los siguientes pasos:
+
+\begin{enumerate}
+    \item Todos los POIs válidos de la categoría actual se acumulan en una lista y se cargan en una tabla temporal en la nube llamada \texttt{stg\_pois\-\_[timestamp]}.
+    \item Se invoca al método \texttt{loader.run\_merge\_query()} que ejecuta un MERGE que cruza la tabla temporal con la definitiva utilizando el \texttt{poi\_id}. Esto permite insertar los puntos nuevos y actualizar los datos variables de los ya existentes.
+    \item Tras realizar la fusión con éxito, se inserta un registro en \texttt{scraper\-\_control} marcando esa categoría y municipio como completados hoy.
+    \item Al salir de los bucles (si la ejecución no estaba limitada a una sola categoría), se hace un \texttt{UPDATE} a la tabla de municipios para marcar también como completada la búsqueda de POIs en este municipio en la fecha de hoy, dando por cerrada la Fase A para esa localidad.
+\end{enumerate}
+
+\subsubsection{Fase B: Extracción de reseñas}
+El objetivo de esta fase es capturar de forma individual las reseñas de los usuarios para cada punto de interés:
+
+Si no se indica un POI objetivo en la configuración, ejecuta una consulta en BigQuery para listar todos los POIs del municipio que nunca hayan sido procesados o cuya última extracción de reseñas supere el margen de días establecido. Si el filtro contiene un nombre, la consulta de reseñas se limita exclusivamente a ese lugar. Si no se encuentran POIs actualizables, salta al siguiente municipio.
+
+Para cada POI seleccionado, se obtiene, a través del loader, el identificador de la reseña más reciente guardada en la base de datos para ese POI y se realiza la extracción. Las opiniones se descargan según el criterio fijado en la configuración. Si este criterio está establecido en \texttt{"newest"} (orden cronológico de más nuevas a más antiguas), el programa optimiza el proceso comparando los identificadores una a una a medida que las recorre. En el momento en que el identificador procesado coincide con el ID guardado en la base de datos, el script sabe que el resto de reseñas ya están almacenadas de ejecuciones previas y ejecuta un \texttt{break} para detener la lectura de ese POI en ese instante, evitando descargar duplicados y ahorrando costes en la API. Si se utiliza cualquier otro criterio de ordenación, este control de parada se omite para garantizar que no se queden reseñas nuevas sin procesar, delegando la eliminación de duplicados a la etapa de carga.
+
+Una vez extraídas las reseñas, se pasa una a una por el método \texttt{trans\-former.clean\_translate\_review()} para limpiar el texto, traducirlo si no está en castellano, inferir el género del usuario y aplicar los modelos de inteligencia artificial para el análisis de sentimiento.
+
+Finalmente, para completar la Fase B, el script realiza las siguientes acciones:
+
+\begin{enumerate}
+    \item Todas las reseñas procesadas de ese POI se acumulan en una lista y se cargan en una tabla temporal en la nube llamada \texttt{stg\_reviews\-\_[timestamp]}, al igual que se hacía con los POIs.
+    \item Se invoca al método \texttt{loader.run\_merge\_query()} que ejecuta un MERGE cruzando ambas tablas para insertar las nuevas reseñas en la tabla definitiva de reviews.
+    \item Después, se recalcula de forma automática el TORI del sitio con las nuevas aportaciones de valoraciones y sentimientos de las nuevas reseñas añadidas.
+    \item Se hace un \texttt{UPDATE} en la tabla de POIs para marcar que sus reseñas se han actualizado con la fecha de hoy.
+    \item Al terminar con todos los puntos de interés, se actualiza también la tabla de municipios para marcar la extracción de reseñas como completada en el día de hoy, cerrando así la Fase B de ese municipio. Si solo se han extraído las reseñas de un POI indicado, no actualiza este campo en la base de datos porque del resto de POIs del municipio no se han extraído sus reseñas, por lo que no se puede marcar el municipio como completado.
+\end{enumerate}
+
+Para asegurar que todo el proceso funcione de forma automática y desatendida, todo este bucle interno está envuelto en un bloque \texttt{try-except}. Si un punto de interés concreto da un error de red o falla al cargar sus reseñas, el script captura el fallo en los logs y utiliza un \texttt{continue} para saltar al siguiente local de la lista, evitando que un problema puntual detenga la ejecución general del pipeline.
+
+La gran ventaja de este diseño es que el \textit{scraper} está totalmente protegido en ambas fases contra cualquier fallo. Al ir guardando la información en la base de datos, municipio a municipio y activar los checks de control de las tablas (ej: \texttt{last\_poi\_update}), el sistema no pierde nada. Si el programa se corta a la mitad por un fallo de internet, todo lo que se ha extraído hasta ese segundo ya está guardado a salvo en la nube de Google.
+
+Esto permite que, si tenemos que reiniciar el programa, el script lea esos checks y salte automáticamente todo el trabajo que ya está hecho. Así se evita empezar desde cero, lo que nos haría perder muchísimo tiempo y dinero en la API de Apify. Gracias a este control y a la cantidad de filtros que tiene el código, el pipeline funciona de forma segura y está preparado para cualquier situación sin malgastar recursos.
+
+
+\section{Compilación, instalación y ejecución del proyecto}
+El despliegue y la puesta en marcha del pipeline están pensados para que el sistema funcione exactamente igual tanto en un ordenador local en fase de desarrollo como de forma automática en GitHub. El proceso de instalación consiste en preparar los servicios en la nube, configurar las claves de acceso y empaquetar el entorno dentro de un contenedor de Docker para evitar conflictos de versiones.
+
+Para poner en marcha el proyecto por primera vez, se deben seguir estos pasos en orden:
+
+\subsection{Paso 1: Configuración del entorno de desarrollo}
+Para poder gestionar el proyecto, modificar sus parámetros y guardar los cambios de forma segura, se deben preparar las herramientas de desarrollo en el ordenador local:
+
+\begin{enumerate}
+\item \textbf{Instalación del editor (Visual Studio Code):} Se debe descargar e instalar el entorno de desarrollo \textit{Visual Studio Code}. Una vez instalado, servirá como el centro de mando para modificar el archivo de configuración \ruta{config/config.json}, gestionar las credenciales y abrir las terminales de comandos.
+\item \textbf{Creación del repositorio:} Acceder a GitHub y crear un repositorio completamente nuevo y vacío (sin archivo README ni \ruta{.gitignore}).
+    \item \textbf{Descarga y subida del código:} Descargar el código fuente original del proyecto en formato comprimido pulsando el botón verde \texttt{\char`\"Code"} y seleccionando \texttt{"Download ZIP"}. Una vez descomprimido en el ordenador, se abre la carpeta en VS Code mediante el menú \texttt{Archivo > Abrir carpeta}.
+    \item \textbf{Inicialización y conexión del repositorio propio:} Para desvincular el proyecto de la ruta original y conectar la carpeta local de VS Code con el nuevo repositorio vacío creado en la nube, se debe abrir la terminal y ejecutar la siguiente secuencia de comandos:
+    \begin{itemize}
+        \item \texttt{git init}: Inicializa un contenedor de Git limpio en la carpeta local.
+        \item \texttt{git add .}: Prepara todos los archivos del proyecto para el primer volcado.
+        \item \texttt{git commit -m \char`\"Initial commit"}: Registra este estado inicial de los archivos.
+        \item \texttt{git branch -M main}: Establece la rama principal del proyecto.
+        \item \texttt{git remote add origin <URL\_del\_repositorio\_nuevo>}: Enlaza la carpeta local con la dirección web del repositorio personal creado en GitHub (sustituyendo la etiqueta por la URL correspondiente).
+        \item \texttt{git push -u origin main}: Realiza la subida definitiva de todo el código a la nube.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Paso 2: Configuración de la base de datos (BigQuery)}
+El programa necesita que la base de datos ya esté creada antes de ponerse a buscar información. Para crearla, hay que entrar en la web de Google Cloud Console, crear un proyecto y montar las tablas utilizando los archivos que vienen dentro de la carpeta \ruta{database/}.
+
+\subsubsection{Crear el proyecto en Google Cloud}
+Una vez creada la cuenta de GC (entrar con el correo de Google), en la barra de arriba, hay que hacer clic en el botón de proyectos y pulsar el botón \texttt{"Proyecto nuevo"}. Se escribe el nombre del proyecto, se le indica que es un proyecto \texttt{"Sin organización"} (para evitar las restricciones de la organización que tiene una política que impide generar claves) y se da a \texttt{"Crear"}. Una vez creado, el proyecto debería estar seleccionado en la barra de arriba.
+
+\subsubsection{Crear la estructura de las tablas}
+Ahora que está seleccionado el proyecto, se busca la herramienta \textbf{BigQuery} en el menú de la izquierda o en el buscador de arriba y se selecciona para crear ahí todo el almacén de datos del proyecto:
+\begin{enumerate}
+    \item \textbf{Crear el Dataset:} En el panel izquierdo de BigQuery (En la pestaña de Explorador clásico), hay que hacer clic en los tres puntos verticales que salen al lado del nombre del proyecto y elegimos la opción \texttt{\char`\"Crear conjunto de datos"}. En el formulario que se abre, se le da un nombre al dataset y se crea al hacer clic en el botón azul de abajo. Importante recordar cambiar los nombres que vienen por defecto tanto del proyecto como del dataset en el config.json por los elegidos en este paso.
+    \item \textbf{Abrir el editor de código:} Una vez dentro del dataset, pulsando el botón con el símbolo \texttt{\char`\"+"} (\texttt{Consulta en SQL}) que hay en la barra de arriba, se abre una consulta en blanco.
+    \item \textbf{Pegar el diseño de las tablas:} Desde el entorno de desarrollo local, se abre el archivo \ruta{database/schema.sql}, se copia la totalidad de su contenido (las sentencias \texttt{CREATE TABLE} de las 6 tablas del sistema) y se pega en el editor de consultas de la web de BigQuery.
+    \item \textbf{Comprobar los nombres:} Importante revisar que la primera línea de cada consulta tenga el mismo nombre que le dimos antes al proyecto y al dataset de BigQuery. El formato debe ser siempre: \texttt{`nombre\_proyecto.nombre\_dataset.tabla`}.
+    \item \textbf{Ejecutar:} Le damos al botón \texttt{\char`\"Ejecutar"}. Abajo mostrará un mensaje verde confirmando que todo está correcto y, en el menú de la izquierda, aparecerán las seis tablas creadas vacías.
+\end{enumerate}
+
+\subsubsection{Subir los datos iniciales (archivos CSV)}
+Para que el buscador sepa qué municipios de Burgos tiene que rastrear, qué códigos postales mirar y cómo clasificar las categorías de Google Maps, hay que rellenar las tablas de configuración con los archivos CSV de la carpeta \ruta{database/}.
+
+Para las tablas \texttt{municipalities} y \texttt{categories}, en el menú izquierdo de BigQuery, hacemos clic sobre el nombre que le pusimos al dataset y, en la barra de herramientas de arriba, le damos al botón \texttt{\char`\"Crear tabla"} y rellenamos el formulario con estas opciones:
+\begin{itemize}
+    \item \textbf{Crear tabla desde:} Seleccionamos la opción \texttt{"Subir"}.
+    \item \textbf{Seleccionar archivo:} Buscamos en el equipo el archivo que corresponda (por ejemplo, \ruta{database/municipalities.csv} o \ruta{database/categories.csv}).
+    \item \textbf{Formato de archivo:} Seleccionamos \texttt{\char`\"CSV"}.
+    \item \textbf{Nombre de la tabla:} Escribimos el nombre exacto de la tabla donde va ese archivo (\texttt{municipalities} o \texttt{categories}).
+    \item \textbf{Esquema:} Marcamos la casilla de \texttt{"Detección automática"}.
+    \item \textbf{Preferencias avanzadas:} En \textbf{Preferencia de escritura} seleccionamos \texttt{\char`\"Agrega a la tabla"} y en \textbf{Filas del encabezado que se omitirán} hay que escribir el número \texttt{1} (esto sirve para que el programa ignore la primera línea del archivo, que es donde están los títulos de las columnas).
+    \item Por último, pulsamos \texttt{\char`\"Crear tabla"}.
+\end{itemize}
+
+Para la tabla de códigos postales (\texttt{municipality\_postal\_codes}) se deben seguir exactamente los mismos pasos, excepto en el apartado de \textbf{Esquema}. Para esta tabla hay que marcar la casilla de \texttt{\char`\"Editar como texto"} y pegar exactamente lo siguiente: \texttt{id\_municipality:INTEGER,municipality\_\-name:STRING,postal\_code:STRING}. Esto es estrictamente necesario porque BigQuery, al usar la detección automática, interpreta los códigos postales del archivo CSV como valores numéricos (\textit{Integer}). Al intentar subir estos datos como números a una tabla cuyo esquema ya ha sido definido previamente en el \ruta{schema.sql} como una cadena de texto (\textit{String}), la plataforma lanza un error de incompatibilidad de tipos y bloquea la creación de la tabla. Forzando el esquema manual se soluciona este conflicto y se asegura que se respeten los formatos.
+
+Al terminar estas tres subidas, la base de datos estará lista, con toda la información guardada y preparada para recibir los datos del scraper.
+
+
+\subsection{Paso 3: Obtención de credenciales y configuración de secretos en GitHub}
+Para que el pipeline pueda interactuar con los servicios externos de forma automática, es necesario extraer las claves de acceso de los proveedores en la nube y configurarlas tanto en el entorno de desarrollo local como en el repositorio de GitHub.
+
+\subsubsection{Extracción de la clave de Google Cloud}
+Para permitir que el script de Python se conecte a BigQuery y tenga permisos para escribir y modificar las tablas, se debe generar una clave de cuenta de servicio:
+\begin{enumerate}
+    \item Dentro de la consola web de Google Cloud, abrir el menú de navegación de la izquierda y acceder al apartado \texttt{IAM y administración > Cuentas de servicio}.
+    \item En la barra superior, hacer clic en el botón \texttt{\char`\"Crear cuenta de servicio"}.
+    \item Asignar un nombre a la cuenta y pulsar \texttt{\char`\"Crear y continuar"}.
+    \item En el apartado de asignar roles, seleccionar en el desplegable el rol de \texttt{Editor de datos BigQuery} para otorgar los permisos de escritura necesarios, y hacer clic en \texttt{"Listo"}.
+    \item En la lista de cuentas de servicio que aparece en pantalla, hacer clic sobre la cuenta recién creada y acceder a la pestaña superior denominada \texttt{\char`\"Claves"}.
+    \item Pulsar en el desplegable \texttt{\char`\"Agregar clave > Crear clave nueva"}, seleccionar el formato \textbf{JSON} y hacer clic en \texttt{\char`\"Crear"}.
+    \item El navegador descargará automáticamente un archivo de texto con la clave privada. Se debe mover este archivo a la raíz del proyecto dentro de VS Code y renombrarse como \ruta{key.json}.
+\end{enumerate}
+
+\subsubsection{Obtención del token de Apify}
+Para comunicar el script con la API que ejecuta los scrapers en la nube, es necesario extraer el token personal de la plataforma:
+\begin{enumerate}
+    \item Acceder a la consola de Apify iniciando sesión.
+    \item En el menú de la izquierda, acceder al menú de configuración \texttt{"Settings"}.
+    \item En las pestañas superiores, seleccionar la opción \texttt{\char`\"API \& Integrations"}.
+    \item Copiar la cadena de texto que aparece en el campo \texttt{"Personal API tokens"}.
+    \item En VS Code abrir el archivo \texttt{.env} y escribir la variable pegando el token justo después del signo igual (sin espacios), con el siguiente formato: \\
+    \texttt{APIFY\_TOKEN=token\_copiado}
+\end{enumerate}
+
+\begin{center}
+    \fbox{\begin{minipage}{0.8\textwidth}
+        \textbf{IMPORTANTE:} Los archivos \ruta{key.json} y \ruta{.env} contienen las credenciales de acceso privadas que pueden generar costes económicos en las APIs. \textbf{Bajo ningún concepto se deben subir estos archivos al repositorio público de GitHub}. El archivo \ruta{.gitignore} incluido en el proyecto ya viene configurado para ignorarlos y bloquear su subida accidental.
+    \end{minipage}}
+\end{center}
+
+\subsubsection{Configuración de secretos en GitHub (GitHub Secrets)}
+Dado que los archivos de credenciales locales están bloqueados por seguridad y no se subirán a internet, se deben inyectar las claves directamente en el almacenamiento cifrado de GitHub para que el flujo automatizado de \textit{GitHub Actions} pueda utilizarlas en sus ejecuciones:
+\begin{enumerate}
+    \item Entrar en el repositorio creado en la cuenta de GitHub y acceder a la pestaña superior de configuración \texttt{"Settings"}.
+    \item En el menú lateral izquierdo, desplegar la sección \texttt{"Secrets and variables"} y hacer clic en la opción \texttt{\char`\"Actions"}.
+    \item Pulsar el botón verde superior \texttt{"New repository secret"} para dar de alta la primera clave:
+    \begin{itemize}
+        \item \textbf{Name:} Escribir exactamente el nombre de la variable: \texttt{APIFY\_TOKEN}.
+        \item \textbf{Value:} Pegar la cadena de texto del token copiado de la plataforma de Apify.
+        \item Hacer clic en \texttt{\char`\"Add secret"}.
+    \end{itemize}
+    \item Pulsar de nuevo el botón \texttt{"New repository secret"} para dar de alta la segunda clave:
+    \begin{itemize}
+        \item \textbf{Name:} Escribir exactamente el nombre de la variable: \texttt{GCP\_SA\_KEY}.
+        \item \textbf{Value:} Abrir el archivo \ruta{key.json} en el ordenador local, seleccionar y copiar todo el bloque de texto que contiene el archivo y pegarlo entero en este recuadro.
+        \item Hacer clic de nuevo en \texttt{\char`\"Add secret"}.
+    \end{itemize}
+\end{enumerate}
+Una vez completado este paso, el repositorio estará completamente preparado con los accesos necesarios para ejecutar el scraper en segundo plano de manera autónoma.
+
+\subsection{Paso 4: Entornos y opciones de ejecución del sistema}
+Una vez que la base de datos está lista y las claves de seguridad están configuradas en sus respectivos lugares, se debe preparar el entorno para poder ejecutar el código. El pipeline ofrece una arquitectura versátil diseñada tanto para el desarrollo y depuración en un entorno local como para la automatización desatendida en la nube. Independientemente de la opción de lanzamiento elegida, el comportamiento del script (los municipios a rastrear, el límite de reseñas o los filtros temporales) se gestiona de forma centralizada modificando los parámetros del archivo \ruta{config/config.json}:
+
+\subsubsection{1. Despliegue en entorno local (Desarrollo y pruebas)}
+Esta opción requiere la descarga del código fuente en la máquina del usuario y es la adecuada para realizar modificaciones rápidas, tareas de mantenimiento o pruebas de rendimiento controladas. Se puede preparar el sistema mediante dos alternativas:
+
+\paragraph{Opción A: Instalación directa en el sistema}
+Esta opción es la adecuada si se desea realizar modificaciones en el código fuente y probarlas de forma inmediata, evitando los tiempos de espera de compilación del contenedor.
+\begin{enumerate}
+    \item \textbf{Instalación de Python:} Descargar e instalar \textbf{Python 3.13} desde su página web oficial \url{https://www.python.org/downloads/}. Durante el proceso de instalación en Windows, es indispensable marcar la casilla de verificación \texttt{\char`\"Add python.exe to PATH"} para que el sistema operativo reconozca los comandos desde cualquier terminal.
+    \item \textbf{Abrir la consola:} Acceder al menú superior de VS Code y seleccionar la opción \texttt{Terminal > New Terminal}.
+    \item \textbf{Instalar las librerías del proyecto:} Ejecutar en la terminal el comando de instalación de dependencias en la raíz del proyecto: \\
+    \texttt{pip install -r requirements.txt} \\
+    El gestor de paquetes leerá el archivo e instalará en el sistema todas las librerías necesarias con las versiones exactas con las que se ha diseñado el proyecto.
+    \item \textbf{Lanzamiento :} El script se inicia ejecutando directamente en la consola el comando: \\ 
+    \texttt{python main\_scraper\_pipeline.py}, estando dentro de la carpeta \ruta{/src}.
+\end{enumerate}
+
+\paragraph{Opción B: Despliegue aislado mediante Docker}
+Esta es la opción recomendada para asegurar que el pipeline funcione de forma idéntica en cualquier máquina o servidor de producción, ya que empaqueta el código, el sistema operativo y las librerías en un contenedor totalmente aislado, evitando tener que instalar dependencias a mano en el ordenador.
+
+\begin{enumerate}
+    \item \textbf{Requisitos de almacenamiento y arranque:} Se debe descargar e instalar la aplicación \textit{Docker Desktop} desde su página oficial \url{https://www.docker.com/products/docker-desktop/}. Una vez instalada, se debe arrancar y mantener encendida la aplicación en el ordenador. Es importante destacar que el sistema operativo anfitrión debe disponer de al menos \textbf{15 GB de espacio libre en el disco duro} antes de construir el contenedor. Este espacio es necesario para dar cabida a la máquina virtual de Linux (WSL2), la imagen base de Python 3.13 y el procesado de las librerías de análisis de texto.
+    
+    \item \textbf{Construir y lanzar el entorno (Docker Compose):} Con la aplicación de Docker abierta, se accede a la terminal de VS Code y se ejecuta el comando en la raíz del proyecto: \\
+    \texttt{docker-compose up --build} \\
+    Este comando automatiza todo el proceso de golpe: lee el archivo de configuración \ruta{docker-compose.yml}, descarga la versión de Python 3.13, instala las librerías del \ruta{requirements.txt}, inyecta el token  del archivo \ruta{.env} y arranca el script principal automáticamente en unos minutos.
+    
+    \item \textbf{Ejecuciones posteriores:} Una vez realizado el proceso anterior por primera vez, el entorno quedará guardado de forma permanente dentro de la interfaz de \textit{Docker Desktop}. Para futuras ejecuciones, (siempre y cuando no se haya modificado el código fuente del programa), no será necesario volver a usar la terminal, bastará con abrir la aplicación visual de Docker y hacer clic en el botón de reproducción (\textit{Start}) para repetir el proceso con la imagen ya compilada. En caso de realizar cualquier modificación en el proyecto, será necesario volver a lanzar el comando \texttt{docker-compose up --build} desde la terminal para actualizar el contenedor con los nuevos cambios.
+    
+    \item \textbf{Monitorización de logs:} Para monitorizar la ejecución en tiempo real, el usuario puede hacer clic sobre el contenedor en la interfaz de \textit{Docker Desktop}, lo cual abrirá una consola integrada de \textit{Logs} donde se vuelca todo el histórico de la ejecución. Igualmente, gracias a la configuración del \ruta{docker-compose.yml}, el archivo .log se almacenará en la carpeta de /logs del repositorio. 
+    
+    \item \textbf{Personalización de la nomenclatura en el despliegue:} Por defecto, Docker agrupa los contenedores utilizando el nombre de la carpeta raíz del proyecto y asigna un identificador automático al script (ej. \texttt{scraper-1}). Si se desea personalizar esta nomenclatura para adaptarla a estándares corporativos, se debe editar el archivo \ruta{docker-compose.yml} introduciendo la directiva global \texttt{name:} en la raíz del archivo para renombrar el grupo, y la propiedad \texttt{container\_name:} dentro del servicio específico para fijar el nombre del contenedor individual.
+\end{enumerate}
+
+\subsubsection{2. Despliegue en la nube (GitHub Actions)}
+A diferencia de los entornos locales, esta vía de producción ejecuta el sistema completo de forma remota y desatendida en los servidores de GitHub, sin requerir descargas de infraestructura, almacenamiento o consumo de recursos en el ordenador del usuario. Ofrece dos modos de activación:
+
+\paragraph{Opción A: Ejecución manual}
+Permite realizar ejecuciones en cualquier momento de forma manual en la nube:
+\begin{enumerate}
+    \item Acceder al repositorio propio de GitHub y hacer clic en la pestaña superior \texttt{\char`\"Actions"}.
+    \item En el menú lateral izquierdo, seleccionar el workflow correspondiente al pipeline del scraper (\textit{Run Burgos Scraper}).
+    \item Hacer clic en el botón desplegable \texttt{\char`\"Run workflow"} situado a la derecha, seleccionar la rama principal (\textit{main}) y pulsar el botón verde de confirmación \texttt{\char`\"Run workflow"} para iniciar la ejecución en la máquina virtual remota de GitHub Actions.
+\end{enumerate}
+
+\paragraph{Opción B: Ejecución programada automática en la nube}
+Es el estado de operación definitivo del sistema para trabajar de forma autónoma a largo plazo. Gracias a la directiva \texttt{schedule} integrada en el archivo YAML de configuración del workflow de GitHub Actions, la plataforma evalúa una expresión Cron temporal de forma constante. Al cumplirse el intervalo temporal configurado (por ejemplo, cada mes o cada semana), los servidores de GitHub despiertan el contenedor automáticamente, ejecutan el rastreo y actualizan las tablas correspondientes sin intervención humana.
+
+\subsubsection{Visualización en Looker Studio}
+Una de las grandes ventajas de la arquitectura del proyecto es que el cuadro de mando de Looker Studio no requiere ningún tipo de ejecución, actualización manual o despliegue de código. Al estar conectado de forma directa y nativa al almacén de datos de Google BigQuery, cualquier inserción, modificación o actualización de reseñas realizada por el scraper se refleja de forma completamente dinámica e instantánea en los gráficos del informe.
+
+
+\section{Pruebas del sistema}
+El proyecto no cuenta con tests unitarios automatizados, pero su diseño permite realizar una amplia variedad de pruebas reales modificando los parámetros del archivo de configuración para obtener y comprobar resultados de elementos específicos.
+
+El correcto funcionamiento de todo el pipeline y la detección de posibles fallos se controlan de forma activa mediante el volcado de mensajes por pantalla (logs) y el manejo de excepciones en los bloques de código.
+
+\subsection{Subsistema de Logs}
+El archivo \ruta{src/utils/logger.py} canaliza todos los mensajes informativos y de error que genera el programa. Esta salida se duplica de forma automática:
+\begin{itemize}
+	\tightlist
+	\item Se muestra en tiempo real por la terminal de comandos, lo cual es esencial para monitorizar el contenedor Docker tanto en local como dentro de la plataforma GitHub Actions.
+	\item Se guarda en archivos físicos locales dentro de la carpeta \ruta{logs/}. La nomenclatura de estos archivos utiliza el formato \texttt{ejecucion\_YYYY-MM-DD\_HH-MM-SS.log} para que cada ejecución genere su propio registro independiente y ordenado cronológicamente.
+\end{itemize}
+
+\subsection{Control de Excepciones y Puntos de Control}
+Todas las consultas realizadas a la base de datos de BigQuery y las llamadas a la API externa de Apify están envueltas en bloques de control de errores (\textit{try-except}). 
+
+Si ocurre una caída en la red, una saturación de peticiones o un fallo de autenticación, el programa captura la excepción, escribe el error detallado en el archivo de log para que el desarrollador sepa qué ha fallado y actualiza la tabla de control en BigQuery con los datos que se hayan guardado de forma segura hasta ese instante. De esta forma, se asegura que, si el pipeline se interrumpe por cualquier motivo, en el siguiente arranque saltará de forma automática los municipios y categorías que ya se completaron con éxito, impidiendo la duplicidad de registros y evitando un gasto innecesario de créditos en la API.
+
+\subsection{Matriz de Trazabilidad de Pruebas}
+Para verificar el correcto funcionamiento del sistema sin necesidad de pruebas unitarias aisladas, se han agrupado los requisitos funcionales en cuatro grandes escenarios de prueba de ejecución. A continuación, se muestra la correspondencia entre los requisitos y las pruebas diseñadas:
+
+\begin{table}[htbp]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.25\columnwidth} X }
+		\toprule
+		\textbf{Código de Prueba} & \textbf{Requisitos Funcionales Validados} \\
+		\toprule
+		\textbf{PE-01} (Filtros y Configuración) & RF-1.2, RF-1.3, RF-1.5, RF-2.2, RF-6.1 \\ \midrule
+		\textbf{PE-02} (Rastreo Geográfico)      & RF-1.4, RF-3.1, RF-3.2, RF-3.3, RF-3.4, RF-3.5 \\ \midrule
+		\textbf{PE-03} (Procesamiento y NLP)     & RF-1.1, RF-3.6, RF-4.1, RF-4.2, RF-4.3, RF-4.4, RF-5.1, RF-5.2 \\ \midrule
+		\textbf{PE-04} (Carga Cloud y Control)   & RF-2.1, RF-5.3, RF-5.4, RF-5.5, RF-5.6, RF-6.2, RF-7 \\
+		\bottomrule
+	\end{tabularx}
+	\caption{Matriz de correspondencia entre pruebas y requisitos funcionales.}
+\end{table}
+
+
+\subsection{Escenarios de prueba de ejecución}
+
+% Prueba 1: Filtros y Configuración
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.25\columnwidth} X }
+		\toprule
+		\textbf{Caso de Prueba} & \textbf{PE-01: Verificación de filtros y configuración operativa} \\
+		\toprule
+		\textbf{Objetivo}       & Comprobar que el programa lee bien los filtros manuales y cambia el orden y el nivel de los mensajes por pantalla. \\ \midrule
+		\textbf{Entrada}        & Archivo \texttt{config.json} con \texttt{target\_municipality: "Burgos"}, \texttt{target\_poi: "Museo de la Evolución Humana (MEH)"} y \texttt{log\_level: "INFO"}. \\ \midrule
+		\textbf{Pasos}          & 
+		\begin{enumerate}
+			\tightlist
+			\item Modificar los campos mencionados en el archivo de configuración externa.
+			\item Lanzar el script de forma manual desde la terminal de comandos.
+			\item Revisar el flujo de mensajes que se imprime en la consola.
+		\end{enumerate} \\ \midrule
+		\textbf{Resultado Esperado} & El programa arranca mostrando solo mensajes importantes (INFO). Ignora el resto de pueblos y salta directo a extraer únicamente las reseñas del Museo de la Evolución Humana sin extraer puntos de interés. \\ \midrule
+		\textbf{Estado}         & \textbf{APTO (Aprobado)} \\
+		\bottomrule
+	\end{tabularx}
+	\caption{Tabla de prueba PE-01.}
+\end{table}
+
+% Prueba 2: Rastreo Geográfico
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.25\columnwidth} X }
+		\toprule
+		\textbf{Caso de Prueba} & \textbf{PE-02: Verificación del rastreo geográfico y filtros de zona} \\
+		\toprule
+		\textbf{Objetivo}       & Validar que el bucle de municipios funciona, aplica bien las estrategias por tamaño de población y descarta los sitios de fuera de Burgos. \\ \midrule
+		\textbf{Entrada}        & Archivo \texttt{config.json} con los límites demográficos (400 y 5000 habitantes) y prefijo postal "09". \\ \midrule
+		\textbf{Pasos}          & 
+		\begin{enumerate}
+			\tightlist
+			\item Dejar los filtros vacíos para activar la ejecución sobre el listado de municipios.
+			\item Arrancar el pipeline y vigilar la llamada de categorías en los pueblos pequeños frente a las ciudades.
+			\item Comprobar los sitios descartados en el log.
+		\end{enumerate} \\ \midrule
+		\textbf{Resultado Esperado} & El programa itera en bucle por las localidades de BigQuery. Al llegar a un pueblo de menos de 400 habitantes, reduce la zona de búsqueda de Apify. Si un local devuelto por la API tiene un código postal que no pertenece a ese municipio, lo elimina de la lista. \\ \midrule
+		\textbf{Estado}         & \textbf{APTO (Aprobado)} \\
+		\bottomrule
+	\end{tabularx}
+	\caption{Tabla de prueba PE-02.}
+\end{table}
+
+% Prueba 3: Procesamiento y NLP
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.25\columnwidth} X }
+		\toprule
+		\textbf{Caso de Prueba} & \textbf{PE-03: Verificación de limpieza, modelos NLP y control de duplicados} \\
+		\toprule
+		\textbf{Objetivo}       & Comprobar que el programa filtra textos cortos, traduce, calcula el género, analiza el sentimiento, calcula el TORI y frena si la reseña ya existe. \\ \midrule
+		\textbf{Entrada}        & Archivo \texttt{config.json} con \texttt{target\_poi: "Catedral de Santa María de Burgos"} para extraer las reseñas de la catedral (internacionales). \\ \midrule
+		\textbf{Pasos}          & 
+		\begin{enumerate}
+			\tightlist
+			\item Modificar los campos mencionados en el archivo de configuración externa.
+			\item Lanzar el script de forma manual desde la terminal de comandos.
+			\item Revisar la asignación de notas de sentimiento y género del archivo final.
+			\item Lanzar una segunda ejecución consecutiva para comprobar el freno por fecha.
+		\end{enumerate} \\ \midrule
+		\textbf{Resultado Esperado} & Los comentarios de menos de 8 palabras desaparecen. Las reseñas en otros idiomas se guardan traducidas al castellano. Se rellenan correctamente las columnas de género y sentimiento entre -1 y 1. En la segunda ejecución, el bucle hace un \texttt{break} inmediato al detectar que la primera reseña extraída ya existe en BigQuery. \\ \midrule
+		\textbf{Estado}         & \textbf{APTO (Aprobado)} \\
+		\bottomrule
+	\end{tabularx}
+	\caption{Tabla de prueba PE-03.}
+\end{table}
+
+% Prueba 4: Carga Cloud y Automatización
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.25\columnwidth} X }
+		\toprule
+		\textbf{Caso de Prueba} & \textbf{PE-04: Verificación de carga en la nube, resiliencia y visualización} \\
+		\toprule
+		\textbf{Objetivo}       & Validar que los datos se fusionan sin duplicar en BigQuery, se borran los residuos temporales, se guarda la fecha de control y Looker muestra los cambios. \\ \midrule
+		\textbf{Entrada}        & Lanzamiento desatendido por tiempo en GitHub Actions con datos listos para subir. \\ \midrule
+		\textbf{Pasos}          & 
+		\begin{enumerate}
+			\tightlist
+			\item Dejar que el Cron de GitHub Actions inicie el contenedor Docker.
+			\item Comprobar el dataset de BigQuery tras la finalización del programa.
+			\item Abrir el enlace del panel web de Looker Studio.
+		\end{enumerate} \\ \midrule
+		\textbf{Resultado Esperado} & La consulta \texttt{MERGE} añade los registros nuevos a la nube sin duplicados. Al terminar, la tabla temporal de staging desaparece del servidor. Se escribe la fila de control con el checkpoint y un archivo físico log en la carpeta correspondiente. El cuadro de mando web actualiza sus gráficos automáticamente. \\ \midrule
+		\textbf{Estado}         & \textbf{APTO (Aprobado)} \\
+		\bottomrule
+	\end{tabularx}
+	\caption{Tabla de prueba PE-04.}
+\end{table}
+
