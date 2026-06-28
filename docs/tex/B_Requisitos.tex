@@ -1,0 +1,1021 @@
+\apendice{Especificación de Requisitos}
+
+\section{Introducción}
+Este anexo describe en detalle la estructura de requisitos y el comportamiento funcional del sistema desarrollado para el Boletín de Turismo de la provincia de Burgos. En las siguientes secciones se acotan los objetivos generales del proyecto, se desglosa el catálogo de requisitos funcionales y no funcionales que rigen el comportamiento de la infraestructura, y se especifican los casos de uso principales que describen la interacción de los componentes del pipeline de datos y los usuarios finales con el sistema.
+
+
+\section{Objetivos generales}
+Se definen los siguientes objetivos generales a nivel de ingeniería de software, los cuales cubren el ciclo de vida completo del dato desde su captura inicial hasta su explotación final:
+
+\begin{itemize}
+    \item \textbf{OBJ-1 (Automatización de la extracción):} Automatizar la recopilación de puntos de interés turísticos y opiniones de usuarios para los municipios de la provincia de Burgos, eliminando la necesidad de realizar búsquedas manuales por parte del personal institucional.
+    \item \textbf{OBJ-2 (Procesamiento y enriquecimiento):} Desarrollar un módulo de procesamiento capaz de limpiar los datos en bruto extraídos, traducir automáticamente las reseñas internacionales al castellano y clasificar el sentimiento de las opiniones mediante modelos de lenguaje para aportar valor estadístico.
+    \item \textbf{OBJ-3 (Centralización del almacenamiento):} Centralizar el almacenamiento de toda la información recogida en una base de datos estructurada, segura y de bajo coste operativo en la nube, garantizando la integridad de los datos mediante el uso de identificadores e información base necesaria extraída de lugares oficiales (INE).
+    \item \textbf{OBJ-4 (Explotación analítica y visualización):} Diseñar un cuadro de mando interactivo y visual en Looker Studio que permita a los gestores institucionales del Boletín de Turismo monitorizar, filtrar y analizar fácilmente las tendencias, valoraciones y la percepción de los visitantes en la provincia.
+    \item \textbf{OBJ-5 (Integración y autonomía del pipeline):} Integrar todas las fases del proceso (extracción, transformación y carga) en un pipeline único, portable y contenedorizado que permita actualizar toda la información del sistema bajo demanda de manera completamente autónoma.
+\end{itemize}
+
+
+\section{Catálogo de requisitos}
+
+\subsection{Requisitos funcionales}
+
+\subsubsection{RF-1 Configurar el sistema}
+El sistema debe permitir parametrizar el comportamiento del pipeline de forma externa a través de un archivo de configuración.
+
+\begin{itemize}
+    \item \textbf{RF-1.1 Configurar márgenes de actualización:} El sistema debe permitir fijar los días de caducidad para volver a extraer datos y reseñas.
+    \item \textbf{RF-1.2 Configurar filtros de ejecución:} El sistema debe permitir limitar el proceso a un único municipio, categoría o punto de interés concreto.
+    \item \textbf{RF-1.3 Configurar criterios de ordenación:} El sistema debe permitir definir la prioridad de recorrido de los bucles mediante ordenaciones SQL.
+    \item \textbf{RF-1.4 Configurar límites demográficos:} El sistema debe permitir establecer los límites de habitantes para clasificar los municipios en rural, semi-rural y urbano.
+    \item \textbf{RF-1.5 Configurar el nivel de detalle de los logs:} El sistema debe permitir definir la precisión de las trazas de ejecución.
+\end{itemize}
+
+\subsubsection{RF-2 Controlar la ejecución secuencial del pipeline}
+El sistema debe permitir su ejecución desatendida y el control del flujo del programa.
+
+\begin{itemize}
+    \item \textbf{RF-2.1 Ejecutar de forma programada:} El sistema debe iniciarse automáticamente de manera periódica a través de GitHub Actions según el horario configurado.
+    \item \textbf{RF-2.2 Ejecutar de forma manual:} El sistema debe permitir que un usuario active el pipeline bajo demanda desde la plataforma de desarrollo.
+\end{itemize}
+
+\subsubsection{RF-3 Extraer información}
+El sistema debe buscar y extraer datos oficiales de Google Maps de forma automatizada.
+
+\begin{itemize}
+    \item \textbf{RF-3.1 Recorrer municipios en bucle:} El sistema debe recorrer secuencialmente la lista oficial de municipios de Burgos para organizar la ejecución.
+    \item \textbf{RF-3.2 Variar la extracción según la clasificación del municipio:} El sistema debe adaptar la estrategia de búsqueda basándose en el volumen de población del municipio.
+    \item \textbf{RF-3.3 Recorrer categorías en bucle:} El sistema debe realizar búsquedas ordenadas dentro de cada municipio por cada categoría almacenada en la base de datos.    
+    \item \textbf{RF-3.4 Extraer puntos de interés:} El sistema debe recopilar la información de lugares y establecimientos de la provincia de Burgos.    
+    \item \textbf{RF-3.5 Filtrar por código postal:} El sistema debe comprobar y descartar los puntos de interés que queden fuera del término municipal consultado.
+    \item \textbf{RF-3.6 Extraer reseñas:} El sistema debe descargar las reseñas y valoraciones asociadas a cada punto de interés extraído.
+\end{itemize}
+
+\subsubsection{RF-4 Procesar y limpiar reseñas}
+El sistema debe transformar y enriquecer las reseñas obtenidas antes de guardarlas en la base de datos.
+
+\begin{itemize}
+    
+    \item \textbf{RF-4.1 Eliminar reseñas sin valor:} El sistema debe descartar las reseñas breves o sin texto que no aporten valor analítico.
+    \item \textbf{RF-4.2 Traducir reseñas:} El sistema debe traducir al idioma solicitado en la configuración los textos de las reseñas que se hayan escrito en otros idiomas.
+    \item \textbf{RF-4.3 Detectar el género:} El sistema debe estimar de forma agrupada el género del autor a partir de su nombre.
+    \item \textbf{RF-4.4 Analizar el sentimiento:} El sistema debe evaluar el texto para asignar una nota de satisfacción en un rango entre -1 y 1.
+\end{itemize}
+
+\subsubsection{RF-5 Almacenar y optimizar}
+El sistema debe gestionar la base de datos relacional optimizando los costes y los recursos informáticos.
+
+\begin{itemize}
+    \item \textbf{RF-5.1 Evitar descargas redundantes:} El sistema debe parar la descarga de reseñas al encontrar una reseña ya almacenada.
+    \item \textbf{RF-5.2 Calcular el TORI:} El sistema debe combinar las estrellas de Maps y el sentimiento calculado en una nota final escalada desde la configuración.
+    \item \textbf{RF-5.3 Gestionar categorías nuevas:} El sistema debe almacenar las categorías oficiales de Google Maps de los POIs y si se extraen por primera vez clasificarlas dentro de los niveles de categorías.
+    \item \textbf{RF-5.4 Cargar datos en BigQuery:} El sistema debe usar tablas temporales para actualizar o añadir registros nuevos sin duplicados.
+    \item \textbf{RF-5.5 Limpiar tablas temporales:} El sistema debe eliminar las tablas temporales de almacenamiento intermedio una vez que se haya completado la subida de datos a BigQuery.
+    \item \textbf{RF-5.6 Registrar marcas de control:} El sistema debe apuntar el momento de finalización exitosa de extracción por municipio, categoría y POI.
+\end{itemize}
+
+\subsubsection{RF-6 Monitorizar la ejecución}
+El sistema debe encargarse de la monitorización operativa y el registro de la actividad del pipeline.
+
+\begin{itemize}
+    \item \textbf{RF-6.1 Mostrar logs de ejecución:} El sistema debe mostrar las trazas operativas y los errores en la terminal en tiempo real.
+    \item \textbf{RF-6.2 Almacenar historial de logs:} El sistema debe generar y guardar un archivo de texto físico independiente con los registros de cada ejecución.
+\end{itemize}
+
+\subsubsection{RF-7 Visualizar datos}
+El sistema debe ofrecer herramientas analíticas visuales para la explotación final de la información recogida.
+
+\subsection{Requisitos no funcionales}
+
+\begin{itemize}
+    \item \textbf{RNF-1 Contenedorización:} Todo el entorno de ejecución del pipeline debe estar encapsulado en un contenedor Docker para garantizar su portabilidad.
+    \item \textbf{RNF-2 Automatización:} El sistema debe permitir su ejecución de forma programada o desatendida mediante flujos de trabajo de GitHub Actions sin requerir intervención manual constante.
+    \item \textbf{RNF-3 Seguridad:} Las credenciales de los servicios cloud de Google y Apify deben estar completamente aisladas del código fuente, gestionándose a través de variables de entorno seguras.
+    \item \textbf{RNF-4 Optimización de costes:} El consumo informático derivado de las consultas y el almacenamiento de datos en la nube debe garantizar el menor coste posible a través de filtros de seguridad que eviten el consumo excesivo o no deseado.
+    \item \textbf{RNF-5 Tolerancia a fallos:} El pipeline debe capturar las excepciones de red, caídas de las APIs externas o inconsistencias de datos estructurados de un punto de interés concreto mediante bloques \textit{try-except}, forzando la continuación del bucle hacia el siguiente local de la lista para impedir la interrupción total de la ejecución global.
+    \item \textbf{RNF-6 Interoperabilidad administrativa:} La base de datos debe estructurarse utilizando identificadores y códigos estándar nacionales para permitir que los datos recogidos sean compatibles con otros sistemas de la administración pública.
+\end{itemize}
+
+
+\section{Especificación de requisitos}
+
+\imagen{Diagrama_casos_de_uso_TFG_Completo.jpg}{Diagrama completo de casos de uso del pipeline ETL.}
+
+% Caso de Uso 1 -> Configurar el sistema.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-1}    & \textbf{Configurar el sistema}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-1, RF-1.1, RF-1.2, RF-1.3, RF-1.4, RF-1.5 \\
+		\textbf{Descripción}          & Permite al usuario definir las reglas de negocio, los filtros de búsqueda y las opciones de control del programa modificando el archivo de configuración de forma externa. \\
+        \textbf{Precondición}         & El archivo \ruta{config/config.json} debe existir en el directorio del proyecto y estar correctamente estructurado. \\		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario abre el archivo de configuración config.json.
+			\item El usuario modifica los parámetros de configuración de los márgenes, filtros, ordenaciones, límites demográficos, etc. según sus necesidades.
+			\item El usuario guarda los cambios en el archivo.
+			\item Al arrancar el programa, el sistema lee este archivo modificado y aplica los nuevos cambios a toda la ejecución.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El comportamiento del programa queda adaptado a las nuevas preferencias guardadas por el usuario. \\
+		\textbf{Excepciones}          & Si el usuario comete un error al escribir el formato del parámetro o borra campos obligatorios, el programa fallará al arrancar, mostrará un error y se detendrá. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-1 Configurar el sistema.}
+\end{table}
+
+% Caso de Uso 1.1 -> Configurar márgenes de actualización.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-1.1}    & \textbf{Configurar márgenes de actualización}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-1.1 \\
+		\textbf{Descripción}          & El usuario define cuántos días deben pasar antes de que el programa considere que los POIs de un municipio o categoría o de sus reseñas necesiten actualizarse o extraer nuevos otra vez. \\
+		\textbf{Precondición}         & El archivo \ruta{config/config.json} debe existir en el directorio del proyecto y estar correctamente estructurado. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario busca las variables de margen de actualización en el archivo.
+			\item El usuario escribe el número de días límite deseado para los puntos de interés y para las reseñas.
+			\item El usuario guarda el archivo.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Los nuevos días de margen quedan fijados y el código los usará para decidir si actualiza un sitio o si ya se ha procesado hace menos días de los indicados y lo salta. \\
+		\textbf{Excepciones}          & Si el usuario comete un error al escribir el formato del parámetro o borra campos obligatorios, el programa fallará al arrancar, mostrará un error y se detendrá. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-1.1 Configurar márgenes de actualización.}
+\end{table}
+
+% Caso de Uso 1.2 -> Configurar filtros de ejecución.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-1.2}    & \textbf{Configurar filtros de ejecución}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-1.2 \\
+		\textbf{Descripción}          & El usuario escribe un filtro específico para obligar al programa a procesar un único municipio, categoría o POI concreto, en lugar de analizar toda la provincia. \\
+		\textbf{Precondición}         & El archivo \ruta{config/config.json} debe existir en el directorio del proyecto y estar correctamente estructurado. El elemento indicado para filtrar debe estar guardado exactamente con ese nombre en la base de datos. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario busca las variables de filtrado en el archivo.
+			\item El usuario escribe el nombre exacto del municipio, la categoría o el sitio que quiere probar o actualizar de forma aislada o deja los tres en blanco para hacer la ejecución completa.
+			\item El usuario guarda los cambios.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El programa limitará su rango de búsqueda únicamente al elemento escrito por el usuario en su próximo arranque o si se indica el nombre del POI, solo sacará reseñas de ese POI sin hacer extracción de lugares. \\
+		\textbf{Excepciones}          & Ninguna. Si el usuario escribe un nombre que no existe, el programa simplemente no encontrará datos y terminará de forma limpia. \\
+		\textbf{Importancia}          & Media \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-1.2 Configurar filtros de ejecución.}
+\end{table}
+
+% Caso de Uso 1.3 -> Configurar criterios de ordenación.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-1.3}    & \textbf{Configurar criterios de ordenación}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-1.3 \\
+		\textbf{Descripción}          & El usuario define la prioridad y el orden en el que el programa debe recorrer las listas de municipios o categorías al pedirlos a la base de datos. \\
+		\textbf{Precondición}         & El archivo \ruta{config/config.json} debe existir en el directorio del proyecto y estar correctamente estructurado. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario busca el apartado de ordenación en el archivo.
+			\item El usuario escribe el criterio de ordenación en formato SQL (por ejemplo, ordenar por número de habitantes de mayor a menor: population DESC).
+			\item El usuario guarda el archivo.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El programa inyectará este orden en sus consultas para recorrer los bucles en la secuencia elegida por el usuario. \\
+		\textbf{Excepciones}          & Si el usuario escribe mal el nombre de la columna, la base de datos dará un error de formato al arrancar el programa y este se detendrá. \\
+		\textbf{Importancia}          & Baja \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-1.3 Configurar criterios de ordenación.}
+\end{table}
+
+% Caso de Uso 1.4 -> Configurar límites demográficos.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-1.4}    & \textbf{Configurar límites demográficos}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-1.4 \\
+		\textbf{Descripción}          & El usuario fija los umbrales de habitantes necesarios para que el programa clasifique automáticamente cada municipio como entorno rural, semi-rural o urbano. \\
+		\textbf{Precondición}         & El archivo \ruta{config/config.json} debe existir en el directorio del proyecto y estar correctamente estructurado. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario busca las variables de límite de población en el archivo config.json.
+			\item El usuario escribe el número de habitantes que marca la frontera entre un tipo de municipio y otro.
+			\item El usuario guarda los cambios.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El programa usará estos números guardados para asignar un nivel a los municipio y cambiar la estrategia de búsqueda según el nivel de cada uno. \\
+		\textbf{Excepciones}          & Ninguna. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-1.4 Configurar límites demográficos.}
+\end{table}
+
+% Caso de Uso 1.5 -> Configurar el nivel de detalle de los logs.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-1.5}    & \textbf{Configurar el nivel de detalle de los logs}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-1.5 \\
+		\textbf{Descripción}          & El usuario selecciona cuánta información quiere ver por pantalla durante la ejecución (solo errores, o también avisos y detalles técnicos) y si desea activar el guardado en un archivo físico. \\
+		\textbf{Precondición}         & El archivo \ruta{config/config.json} debe existir en el directorio del proyecto y estar correctamente estructurado. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario busca el bloque de configuración del sistema de mensajes.
+			\item El usuario escribe el nivel de detalle que quiere monitorizar (como DEBUG o INFO).
+			\item El usuario activa o desactiva la opción booleana para clonar estos mensajes en un archivo de texto en el repositorio.
+			\item El usuario guarda el archivo.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El sistema de logs adaptará los mensajes de la terminal y los archivos físicos a las preferencias del usuario. \\
+		\textbf{Excepciones}          & Ninguna. Si el usuario escribe mal el nombre del nivel, el programa utilizará el modo INFO por defecto para evitar romperse. \\
+		\textbf{Importancia}          & Baja \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-1.5 Configurar el nivel de detalle de los logs.}
+\end{table}
+
+
+% Caso de Uso 2 -> Controlar la ejecución secuencial del pipeline.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-2}    & \textbf{Controlar la ejecución secuencial del pipeline}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-2, RF-2.1, RF-2.2 \\
+		\textbf{Descripción}          & Es el componente central del código (main.py) que se encarga de gestionar el ciclo de vida del programa, asegurando que los módulos se activen en el orden correcto y controlando la sesión. \\
+		\textbf{Precondición}         & El entorno de ejecución está listo junto con los tokens de Apify y GCP, y el archivo de configuración está accesible. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El sistema recibe la orden de inicio desde uno de los disparadores configurados.
+			\item El archivo principal toma el control del sistema operativo y levanta el proceso en memoria.
+			\item El programa coordina el paso de datos entre los distintos módulos, vigilando que ninguno rompa la secuencia.
+			\item El programa detecta la finalización de los bucles de trabajo y cierra el proceso de forma segura.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El pipeline se apaga correctamente tras completar todas las tareas secuenciales del ciclo. \\
+		\textbf{Excepciones}          & Si ocurre un fallo crítico imprevisto en el sistema que impida la comunicación entre módulos, el programa aborta la sesión actual para evitar corromper las bases de datos. \\
+		\textbf{Importancia}          & Crítica \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-2 Controlar la ejecución secuencial del pipeline.}
+\end{table}
+
+% Caso de Uso 2.1 -> Ejecutar de forma programada.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-2.1}  & \textbf{Ejecutar de forma programada}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-2.1 \\
+		\textbf{Descripción}          & La plataforma GitHub Actions arranca el programa de forma automática y desatendida cada cierto tiempo siguiendo un horario programado. \\
+		\textbf{Precondición}         & El workflow (archivo scraper.yml) está configurado y activo en el repositorio de GitHub con un cron correcto.
+        Están configurados los tokens de Apify y GCP en GitHub Secrets.\\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El reloj interno de GitHub Actions detecta que ha llegado la hora programada en el cron del workflow.
+			\item GitHub Actions levanta un entorno virtual y descarga el código del proyecto.
+			\item Se lanza el comando automático que inicia la ejecución del programa.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El programa principal se pone en marcha de forma automática sin necesidad de que intervenga ningún usuario. \\
+		\textbf{Excepciones}          & Si los servidores de GitHub están caído, el cron es incorrecto o no están las claves en los secretos, la ejecución no llegará a iniciarse. \\
+		\textbf{Importancia}          & Baja \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-2.1 Ejecutar de forma programada.}
+\end{table}
+
+% Caso de Uso 2.2 -> Ejecutar de forma manual.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-2.2}  & \textbf{Ejecutar de forma manual}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-2.2 \\
+		\textbf{Descripción}          & Permite al lanzar el programa de forma inmediata y bajo demanda en una terminal. \\
+		\textbf{Precondición}         & El usuario tiene acceso local o remoto al repositorio, contenedor Docker o terminal donde está instalado el proyecto. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El usuario abre la terminal de comandos del sistema operativo (o la consola de Docker Desktop).
+			\item El usuario introduce el comando de arranque manual del programa principal.
+			\item El programa ejecuta todas sus funciones de manera automática sin necesidad de mayor intervención del usuario.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El pipeline comienza a ejecutarse en tiempo real bajo la supervisión directa del usuario en la terminal. \\
+		\textbf{Excepciones}          & Si el usuario introduce mal el comando o no tiene permisos de administrador en la consola, el sistema operativo deniega el arranque y no se inicia el pipeline. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-2.2 Ejecutar de forma manual.}
+\end{table}
+
+
+% Caso de Uso 3 -> Extraer información.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3}    & \textbf{Extraer información}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3, RF-3.1, RF-3.2, RF-3.3, RF-3.4, RF-3.5, RF-3.6 \\
+		\textbf{Descripción}          & El sistema se conecta con la API de Apify para buscar y descargar los datos de los sitios turísticos de Burgos y sus correspondientes reseñas. \\
+		\textbf{Precondición}         & El token de acceso a la API de Apify está guardado y es válido. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa pide a BigQuery la lista de municipios y las categorías turísticas que debe procesar.
+			\item El programa clasifica cada municipio y organiza la estrategia de búsqueda.
+			\item El programa llama al actor extractor de Apify para descargar la información de los sitios encontrados.
+			\item El programa limpia los resultados incorrectos y aplica el filtro por código postal.
+			\item El programa llama al actor de reseñas de Apify para descargar los comentarios de cada sitio válido.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Los datos de los sitios y sus comentarios quedan descargados en la memoria del programa. \\
+		\textbf{Excepciones}          & Si la API de Apify no responde o da un error, el programa reintenta la conexión un número máximo configurado de veces antes de detenerse con un fallo. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3 Extraer información.}
+\end{table}
+
+% Caso de Uso 3.1 -> Recorrer municipios en bucle.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3.1}  & \textbf{Recorrer municipios en bucle}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3.1 \\
+		\textbf{Descripción}          & El programa lee la lista de municipios de la provincia de Burgos desde BigQuery y va procesando uno por uno de forma ordenada. \\
+		\textbf{Precondición}         & Existe una tabla en BigQuery que contiene la lista oficial de municipios. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa lanza una consulta a BigQuery para traer los municipios pendientes de actualización.
+			\item El programa ordena la lista según el criterio configurado.
+			\item El programa abre un bucle para procesar el primer municipio de la lista y, al acabar, pasa automáticamente al siguiente.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Cada municipio pendiente es seleccionado secuencialmente para extraer sus datos. \\
+		\textbf{Excepciones}          & Si no encuentra la tabla de municipios da error y si la base de datos devuelve una lista vacía porque todo está actualizado, el programa registra un aviso y termina sin hacer nada. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3.1 Recorrer municipios en bucle.}
+\end{table}
+
+% Caso de Uso 3.2 -> Variar la extracción según la clasificación del municipio.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3.2}  & \textbf{Variar la extracción según la clasificación del municipio}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3.2 \\
+		\textbf{Descripción}          & El programa comprueba los habitantes del municipio y adapta los parámetros de búsqueda de Apify según sea un entorno rural, semi-rural o urbano. \\
+		\textbf{Precondición}         & 
+        \begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El municipio que se está procesando tiene asignado su número de habitantes.
+            \item Se indican los límites de cada nivel de municipio en el archivo de configuración
+        \end{enumerate}\\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa comprueba si el número de habitantes es menor que el indicado en la configuración como máximo del nivel rural, después si es menor que el valor indicado como límite de semi-rural o si es mayor y por tanto, urbano.
+			\item Si es un municipio grande (urbano), el programa añade un filtro de localización geográfico estricto al input de Apify para forzar una búsqueda exhaustiva.
+			\item Si es un municipio pequeño, simplifica los parámetros para ahorrar costes de computación en la API y recortar el tiempo empleado en la extracción.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & La consulta de búsqueda enviada a Apify cambia de forma dinámica según el tamaño del municipio. \\
+		\textbf{Excepciones}          & Si no hay datos de población para un municipio, se le asigna el nivel rural. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3.2 Variar la extracción según la clasificación del municipio.}
+\end{table}
+
+% Caso de Uso 3.3 -> Recorrer categorías en bucle.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3.3}  & \textbf{Recorrer categorías en bucle}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3.3 \\
+		\textbf{Descripción}          & Dentro de cada municipio, el programa abre otro bucle para buscar uno por uno los sitios que pertenecen a cada categoría guardada en la base de datos (hoteles, restaurantes, museos, etc.). \\
+		\textbf{Precondición}         & El programa tiene cargada en memoria la lista de categorías permitidas para el nivel de ese municipio. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa selecciona la primera categoría de la lista oficial de taxonomías.
+			\item El programa comprueba en la tabla de control si esa categoría específica ya se ha buscado hace poco en este municipio.
+			\item Si ya se ha buscado recientemente, el programa se salta la categoría; si no, avanza al paso de extracción de Apify.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El programa organiza las búsquedas de Google Maps combinando el nombre del municipio y la categoría. \\
+		\textbf{Excepciones}          & Si no encuentra la tabla de categorías da error y si la base de datos devuelve una lista vacía, el programa registra un aviso y termina sin hacer nada al no detectar categorías que necesiten actualización \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3.3 Recorrer categorías en bucle.}
+\end{table}
+
+% Caso de Uso 3.4 -> Extraer puntos de interés.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3.4}  & \textbf{Extraer puntos de interés}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3.4 \\
+		\textbf{Descripción}          & El programa llama al actor de Apify para descargar la información de los puntos de interés. \\
+		\textbf{Precondición}         & 
+        \begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa ha construido la frase de consulta con la categoría y el municipio correspondiente.
+            \item El token de acceso a la API de Apify está guardado y es válido.
+        \end{enumerate}\\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa envía la consulta al actor de Apify en la nube.
+			\item Apify extrae los sitios encontrados en Google Maps y devuelve un listado en formato JSON.
+			\item El programa recoge la lista.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Se obtiene una lista limpia de datos con los puntos de interés encontrados. \\
+		\textbf{Excepciones}          & Si la API de Apify no responde o da un error, el programa reintenta la conexión un número máximo configurado de veces antes de detenerse con un fallo. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3.4 Extraer puntos de interés.}
+\end{table}
+
+% Caso de Uso 3.5 -> Filtrar por código postal.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3.5}  & \textbf{Filtrar por código postal}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3.5 \\
+		\textbf{Descripción}          & El programa comprueba el código postal de cada sitio descargado y borra los que pertenezcan a otros municipios para evitar errores de geolocalización de Google Maps. \\
+		\textbf{Precondición}         & El programa tiene cargado el conjunto de códigos postales oficiales autorizados para el municipio actual. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa lee el código postal del sitio devuelto por la API.
+			\item Si el código postal viene vacío, el programa busca si aparece algún código de cinco dígitos dentro del texto de su dirección completa para rescatarlo.
+			\item El programa comprueba si el código postal empieza por "09" y si pertenece a la lista de códigos autorizados de ese municipio.
+			\item Si el código postal no está en la lista permitida, el programa descarta el sitio por completo y muestra un aviso por pantalla.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Solo los sitios turísticos que están físicamente dentro del término municipal real se mantienen en la lista de guardado. \\
+		\textbf{Excepciones}          & Si el municipio no tiene códigos postales guardados en la base de datos, el programa aplica un filtro genérico comprobando que empiece por el prefijo "09" de Burgos. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3.5 Filtrar por código postal.}
+\end{table}
+
+% Caso de Uso 3.6 -> Extraer reseñas.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-3.6}  & \textbf{Extraer reseñas}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-3.6 \\
+		\textbf{Descripción}          & El programa utiliza el identificador único de cada POI guardado en la base de datos para llamar al scraper de reseñas de Apify. \\
+		\textbf{Precondición}         & El token de acceso a la API de Apify está guardado y es válido. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa construye una URL usando el identificador del punto de interés del que se van a extraer las reseñas (\texttt{poi\_id}).
+			\item Envía la petición a Apify configurando los parámetros para traer las reseñas limitando el tiempo según los parámetros indicados en el archivo de configuración.
+			\item Recibe el lote completo de reseñas en bruto de ese sitio y los envía al módulo de transformación.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Se descarga el listado de opiniones nuevas de ese establecimiento listas para ser analizadas. \\
+		\textbf{Excepciones}          & Si el sitio no tiene reseñas registradas en Google Maps, la API devuelve una lista vacía y el programa pasa al siguiente POI de forma limpia. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-3.6 Extraer reseñas.}
+\end{table}
+
+
+% Caso de Uso 4 -> Procesar y limpiar reseñas.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-4}    & \textbf{Procesar y limpiar reseñas}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-4, RF-4.1, RF-4.2, RF-4.3, RF-4.4 \\
+		\textbf{Descripción}          & El programa procesa y transforma cada reseña extraída para guardarla en la base de datos con la información completa. \\
+		\textbf{Precondición}         & Se ha descargado alguna reseña. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa analiza cada reseña descargada de forma individual.
+			\item El programa descarta los textos vacíos o demasiado cortos.
+			\item El programa limpia los textos eliminando formatos molestos y traduce las reseñas de otros idiomas.
+			\item El programa calcula estadísticamente el género del usuario y la puntuación de sentimiento del texto.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Se obtiene un conjunto de datos limpio y enriquecido listo para guardarse en la base de datos. \\
+		\textbf{Excepciones}          & Si faltan datos obligatorios, el programa introduce valores por defecto para poder continuar sin romperse. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-4 Procesar y limpiar reseñas.}
+\end{table}
+
+% Caso de Uso 4.1 -> Eliminar reseñas sin valor.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-4.1}  & \textbf{Eliminar reseñas sin valor}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-4.1 \\
+		\textbf{Descripción}          & El programa mide la longitud del comentario y descarta automáticamente los que tengan menos de las palabras indicadas como mínimas en el archivo de configuración o estén completamente vacíos para asegurar la calidad de los datos. \\
+		\textbf{Precondición}         & La reseña está siendo procesada en el módulo de transformación. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa cuenta el número de palabras que componen el texto de la reseña.
+			\item El programa compara este número con el límite mínimo configurado en los parámetros de configuración.
+			\item Si no alcanza el mínimo, el programa descarta la reseña y registra un aviso de depuración.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Solo las reseñas con texto relevante y suficiente longitud continúan en el flujo de guardado. \\
+		\textbf{Excepciones}          & Ninguna. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-4.1 Eliminar reseñas sin valor.}
+\end{table}
+
+% Caso de Uso 4.2 -> Traducir reseñas.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-4.2}  & \textbf{Traducir reseñas}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-4.2 \\
+		\textbf{Descripción}          & El programa borra las etiquetas basura de Google Maps, detecta el idioma real del texto y lo traduce automáticamente al idioma pedido en configuración si se escribió en otra lengua. \\
+		\textbf{Precondición}         & La reseña ha superado el filtro de longitud mínima de palabras. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa limpia los saltos de línea y borra los textos fijos".
+			\item Una librería analiza el texto y detecta el idioma real de la reseña de forma independiente.
+			\item Si el idioma es distinto al idioma objetivo, el programa traduce el comentario.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El texto de la reseña queda traducido y sin textos basura de la interfaz de Google. \\
+		\textbf{Excepciones}          & Ninguna \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-4.2 Traducir reseñas.}
+\end{table}
+
+% Caso de Uso 4.3 -> Detectar el género.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-4.3}  & \textbf{Detectar el género}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-4.3 \\
+		\textbf{Descripción}          & El programa aísla el primer nombre del autor de la reseña y utiliza una base de datos estadística para estimar si es un usuario masculino o femenino. \\
+		\textbf{Precondición}         & El nombre del autor de la reseña está disponible en los datos de origen. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa separa el nombre completo del autor y se queda únicamente con la primera palabra.
+			\item El programa envía este primer nombre al detector automático de género.
+			\item Si el nombre se asocia a mujer se guarda como "Femenino", si se asocia a hombre se guarda como "Masculino" y si es ambiguo se marca con el valor por defecto.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Se añade una nueva columna demográfica de género a la información de la reseña. \\
+		\textbf{Excepciones}          & Si el detector de nombres falla o el nombre no se encuentra en el diccionario, el programa le asigna el valor establecido por defecto de forma controlada. \\
+		\textbf{Importancia}          & Baja \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-4.3 Detectar el género.}
+\end{table}
+
+% Caso de Uso 4.4 -> Analizar el sentimiento.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-4.4}  & \textbf{Analizar el sentimiento}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-4.4 \\
+		\textbf{Descripción}          & El programa analiza el texto traducido mediante un modelo de lenguaje para clasificar la opinión en una categoría y calcular una nota numérica de satisfacción. \\
+		\textbf{Precondición}         & El comentario de la reseña ya se encuentra limpio y traducido al castellano. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa envía el texto de la reseña al analizador de lenguaje de la librería \texttt{pysentimiento}.
+			\item El modelo clasifica el comentario de forma interna dentro de una etiqueta fija (Positivo, Neutral o Negativo).
+			\item El programa resta la probabilidad negativa a la positiva para obtener una nota matemática continua en un rango entre -1 y 1.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & La reseña recibe una nota numérica exacta de sentimiento que representa el nivel de satisfacción del autor de la reseña. \\
+		\textbf{Excepciones}          & Si el modelo de inteligencia artificial da un error inesperado al procesar el texto, el programa le asigna una etiqueta "NEU" y una nota de 0.0 para poder continuar. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-4.4 Analizar el sentimiento.}
+\end{table}
+
+
+% Caso de Uso 5 -> Almacenar y optimizar.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5}    & \textbf{Almacenar y optimizar}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5, RF-5.1, RF-5.2, RF-5.3, RF-5.4, RF-5.5, RF-5.6 \\
+		\textbf{Descripción}          & El programa coge los lotes de datos que ya están limpios y transformados en la memoria y los guarda de forma definitiva, ordenada y segura en las tablas de Google BigQuery. \\
+		\textbf{Precondición}         & El programa tiene datos listos para guardar en memoria y la conexión con Google Cloud funciona correctamente. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa establece comunicación con el almacén de datos de Google BigQuery.
+			\item El programa vuelca los datos de los nuevos puntos de interés y sus reseñas en las tablas correspondientes.
+			\item El programa recalcula la nota de reputación (índice TORI) de cada POI con los nuevos datos añadidos.
+			\item El programa registra la fecha y hora actuales en los campos de control de las tablas para marcar que el trabajo se ha completado con éxito.
+			\item El programa limpia y elimina todos los recursos o tablas temporales que se han usado durante el proceso de subida.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Las tablas de la base de datos quedan actualizadas con la información más reciente y listas para que las consulte Looker Studio. \\
+		\textbf{Excepciones}          & Si la base de datos da un error al guardar o se corta la conexión, el programa registra el fallo por pantalla, borra obligatoriamente las tablas temporales creadas para no generar costes y se detiene de forma segura. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5 Almacenar y optimizar.}
+\end{table}
+
+% Caso de Uso 5.1 -> Evitar descargas redundantes.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5.1}  & \textbf{Evitar descargas redundantes}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5.1 \\
+		\textbf{Descripción}          & El programa frena la descarga de reseñas de un sitio en cuanto encuentra un identificador que ya está guardado en BigQuery, aprovechando que las reseñas vienen ordenadas desde la más nueva. \\
+		\textbf{Precondición}         & El programa ha consultado el identificador de la reseña más reciente de ese sitio antes de llamar a la API. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa recorre el listado de comentarios que va devolviendo Apify de uno en uno.
+			\item El programa compara el identificador de la opinión actual con el último guardado en la base de datos.
+			\item Al detectar una coincidencia exacta, el programa detiene el recorrido del bucle para no procesar el resto de reseñas que seguro que están ya almacenadas al ser más viejas que la última almacenada.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Se evita el procesamiento y la descarga repetida de reseñas, ahorrando costes y tiempo de computación. \\
+		\textbf{Excepciones}          & Si el POI no tiene reseñas, no se aplica esta funcionalidad y extrae todas las reseñas correspondientes. \\
+		\textbf{Importancia}          & Media \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5.1 Evitar descargas redundantes.}
+\end{table}
+
+% Caso de Uso 5.2 -> Calcular el TORI.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5.2}  & \textbf{Calcular el TORI}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5.2 \\
+		\textbf{Descripción}          & El programa combina la puntuación de estrellas de Google Maps y la media del análisis de sentimiento en una nota de reputación final. \\
+		\textbf{Precondición}         & El POI del que se quiere calcular el TORI tiene reseñas guardadas en base de datos. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa obtiene de la configuración el valor máximo que se le da a cada componente del cálculo (valoración y sentimiento).
+			\item El programa calcula la media de todas las puntuaciones de sentimiento guardadas para ese establecimiento concreto.
+			\item Se ejecuta una consulta para actualizar la nota del TORI de ese POI en la base de datos.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El sitio turístico actualiza su nota global de reputación basándose en las nuevas reseñas tratadas. \\
+		\textbf{Excepciones}          & Si el POI no tiene comentarios con texto en la base de datos, el programa aplica un valor de cero a la media de sentimiento para calcular la nota. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5.2 Calcular el TORI.}
+\end{table}
+
+% Caso de Uso 5.3 -> Gestionar categorías nuevas.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5.3}  & \textbf{Gestionar categorías nuevas}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5.3 \\
+		\textbf{Descripción}          & Si el programa encuentra una categoría nueva en Google Maps que no estaba registrada, calcula un número de identificación nuevo y la añade automáticamente a la lista de la base de datos. \\
+		\textbf{Precondición}         & El programa ha extraído un POI que pertenece a una categoría no registrada en la base de datos. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa mira si la categoría ya existe en la base de datos.
+			\item Si no existe, busca el código numérico más alto en la base de datos y le suma uno para crear el siguiente identificador.
+			\item El programa guarda la nueva categoría en la tabla de BigQuery para poder usarla a partir de ese momento.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & La lista de categorías se actualiza en la base de datos y el POI se guarda bien enlazado. \\
+		\textbf{Excepciones}          & Si ocurre un error al intentar guardar la nueva categoría en la base de datos, el programa muestra el fallo por pantalla y se salta ese sitio para seguir con los demás. \\
+		\textbf{Importancia}          & Media \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5.3 Gestionar categorías nuevas.}
+\end{table}
+
+% Caso de Uso 5.4 -> Cargar datos en BigQuery.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5.4}  & \textbf{Cargar datos en BigQuery}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5.4 \\
+		\textbf{Descripción}          & Sube todos los datos limpios juntos a una tabla temporal en internet y luego los junta con la tabla definitiva. \\
+		\textbf{Precondición}         & Que haya un POI o reseña extraídos \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa junta los datos acumulados en la memoria y los sube creando una tabla temporal en la base de datos.
+			\item El programa pide a BigQuery que compare la tabla temporal con la definitiva para añadir lo nuevo y actualizar lo que haya cambiado.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Los datos de los POIs y las reseñas se guardan de forma definitiva e integrada en la nube. \\
+		\textbf{Excepciones}          & Si hay un error con el formato de los datos, el programa detiene la subida, avisa por pantalla y lanza un aviso de fallo. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5.4 Cargar datos en BigQuery.}
+\end{table}
+
+% Caso de Uso 5.5 -> Limpiar tablas temporales.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5.5}  & \textbf{Limpiar tablas temporales}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5.5 \\
+		\textbf{Descripción}          & El programa borra la tabla temporal de la base de datos en cuanto termina de guardar los datos para no ocupar espacio de más ni generar gastos extra en la nube. \\
+		\textbf{Precondición}         & El programa ha terminado de lanzar la orden para juntar los datos en la base de datos. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa termina de procesar la subida principal de los datos.
+			\item Se envía una orden directa a BigQuery para borrar del mapa la tabla temporal que se creó para esa ejecución.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & La base de datos queda totalmente limpia de archivos temporales de almacenamiento intermedio. \\
+		\textbf{Excepciones}          & Si el programa no puede borrar la tabla temporal por un fallo en la conexión, muestra un aviso de advertencia por pantalla y continúa. \\
+		\textbf{Importancia}          & Media \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5.5 Limpiar tablas temporales.}
+\end{table}
+
+% Caso de Uso 5.6 -> Registrar marcas de control.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-5.6}  & \textbf{Registrar marcas de control}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-5.6 \\
+		\textbf{Descripción}          & Guarda el día y la hora exactos en los que se termina de actualizar un municipio o categoría para que el programa sepa que está al día en las siguientes ejecuciones. \\
+		\textbf{Precondición}         & El proceso de descarga e inserción de datos de ese bloque ha terminado correctamente y sin errores pasando por todos los elementos del bucle. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa genera una marca con la hora y la fecha actuales del ordenador.
+			\item Guarda una fila en la tabla de control apuntando el nombre del municipio, la categoría y la hora actual.
+			\item Actualiza las fechas de última revisión en las tablas principales de municipios y de POIs.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Quedan guardadas las fechas de control que servirán para saber qué partes están actualizadas en el próximo arranque. \\
+		\textbf{Excepciones}          & Ninguna. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-5.6 Registrar marcas de control.}
+\end{table}
+
+% Caso de Uso 6 -> Monitorizar la ejecución.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-6}    & \textbf{Monitorizar la ejecución}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-6, RF-6.1, RF-6.2 \\
+		\textbf{Descripción}          & El sistema muestra la actividad del programa por pantalla en tiempo real y permite elegir, según lo que configure el usuario, si también se desea guardar un archivo de texto en el ordenador. \\
+		\textbf{Precondición}         & El programa principal está arrancando o ya está funcionando en memoria. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El sistema empieza a capturar todos los avisos y mensajes que generan las distintas partes del código.
+			\item El sistema envía siempre los mensajes a la pantalla de la terminal para poder verlos en directo (CU-6.1).
+			\item El sistema revisa el archivo de configuración y, solo si el usuario ha activado la opción, guarda también esos mensajes en un archivo de texto (CU-6.2).
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Toda la actividad técnica se ve en directo por la consola y, de forma opcional, queda salvada en un archivo físico en el disco duro. \\
+		\textbf{Excepciones}          & Si el sistema de mensajes falla al encenderse, el programa funcionará a ciegas sin mostrar información de lo que hace. \\
+		\textbf{Importancia}          & Media \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-6 Monitorizar la ejecución.}
+\end{table}
+
+% Caso de Uso 6.1 -> Mostrar logs de ejecución.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-6.1}  & \textbf{Mostrar logs de ejecución}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-6.1 \\
+		\textbf{Descripción}          & Muestra por pantalla en tiempo real los mensajes informativos, los avisos y los errores del programa para que el usuario pueda vigilar qué está haciendo el código. \\
+		\textbf{Precondición}         & El sistema de mensajes se ha encendido correctamente al arrancar el programa principal. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item Una parte del código genera un aviso o un mensaje sobre la tarea que está realizando en ese instante.
+			\item El sistema le pega automáticamente la fecha, la hora, el nombre del archivo de código y el número de línea exacto.
+			\item El sistema mira si el aviso es lo bastante importante según lo configurado y lo pinta en la pantalla de la terminal.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El desarrollador ve en la pantalla de la terminal todo lo que hace el programa segundo a segundo. \\
+		\textbf{Excepciones}          & Ninguna. \\
+		\textbf{Importancia}          & Media \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-6.1 Mostrar logs de ejecución.}
+\end{table}
+
+% Caso de Uso 6.2 -> Almacenar historial de logs.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-6.2}  & \textbf{Almacenar historial de logs}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-6.2 \\
+		\textbf{Descripción}          & Escribe y guarda todos los mensajes que salen por pantalla en un archivo de texto físico en la carpeta logs del repositorio para poder revisarlos más tarde. \\
+		\textbf{Precondición}         & La opción de guardar mensajes en un archivo está activada con el valor correcto en la configuración. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item El programa crea o abre un archivo de texto dentro de la carpeta de registros del proyecto.
+			\item Cada vez que sale un mensaje por pantalla, el programa escribe exactamente esa misma línea de texto dentro del archivo.
+			\item El programa guarda el texto usando un formato seguro compatible con letras especiales, tildes y caracteres complejos para evitar bloqueos.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & Se guarda un archivo de texto físico con todo el historial de la ejecución. \\
+		\textbf{Excepciones}          & Ninguna \\
+		\textbf{Importancia}          & Baja \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-6.2 Almacenar historial de logs.}
+\end{table}
+
+% Caso de Uso 7 -> Visualizar datos.
+\begin{table}[p]
+	\centering
+	\begin{tabularx}{\linewidth}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+		\toprule
+		\textbf{CU-7}    & \textbf{Visualizar datos}\\
+		\toprule
+		\textbf{Versión}              & 1.0    \\
+		\textbf{Autor}                & Nicolás Pérez Ibáñez \\
+		\textbf{Requisitos asociados} & RF-7, RF-7.1 \\
+		\textbf{Descripción}          & Permite al usuario abrir el panel web interactivo de Looker Studio para consultar de forma visual las gráficas con los datos extraídos de la provincia. \\
+		\textbf{Precondición}         & El proyecto de Looker Studio está conectado a la base de datos que está actualizada con los últimos datos guardados. \\
+		\textbf{Acciones}             &
+		\begin{enumerate}
+			\def\labelenumi{\arabic{enumi}.}
+			\tightlist
+			\item La plataforma de Looker Studio se conecta automáticamente con las tablas de la base de datos de BigQuery.
+			\item El panel carga y dibuja en la pantalla las gráficas de evolución, los mapas de ubicación y las listas de notas.
+			\item El usuario usa los botones y filtros de la pantalla para personalizar la visualización de la información a través de filtros.
+		\end{enumerate}\\
+		\textbf{Postcondición}        & El usuario analiza y explota los datos turísticos de la provincia. \\
+		\textbf{Excepciones}          & Si internet o los servicios en la nube de Google sufren una caída, las gráficas se quedarán en blanco y mostrarán un aviso de error de conexión. \\
+		\textbf{Importancia}          & Alta \\
+		\bottomrule
+	\end{tabularx}
+	\caption{CU-7 Visualizar datos.}
+\end{table}
