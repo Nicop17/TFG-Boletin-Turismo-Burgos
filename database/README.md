@@ -4,7 +4,7 @@ Esta carpeta contiene las plantillas estructurales y los datos maestros necesari
 
 ## Contenido de la carpeta
 
-* `schema.sql`: Archivo universal con las sentencias `CREATE TABLE` de las 6 tablas del sistema.
+* `schema.sql`: Archivo universal con las sentencias `CREATE TABLE` de las 6 tablas del sistema y los `CREATE VIEW` de las 2 vistas de POIs y reseñas.
 * `municipalities.csv`: Listado de los municipios de la provincia de Burgos con sus códigos identificadores y población.
 * `categories.csv`: Taxonomía y equivalencias de categorías para las búsquedas del scraper.
 * `municipality_postal_codes.csv`: Diccionario de los códigos postales autorizados y vinculados a cada municipio.

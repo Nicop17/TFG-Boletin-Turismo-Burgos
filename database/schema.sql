@@ -85,3 +85,87 @@ CREATE TABLE IF NOT EXISTS `tfg-boletin-turismo-burgos.ds_turismo_reviews.munici
   municipality_name STRING OPTIONS(description="Nombre del municipio"),
   postal_code STRING OPTIONS(description="Códigos postalales que puede contener el municipio")
 );
+
+-- 7. Vista de POIs con información de categoría y municipio
+CREATE OR REPLACE VIEW `tfg-boletin-turismo-burgos.ds_turismo_reviews.view_pois` AS (
+  SELECT 
+    p.poi_id,
+    p.poi_name,
+    p.id_municipality,
+    p.poi_municipality,
+    p.address,
+    p.postal_code,
+    p.id_category,
+    p.maps_category,
+    p.poi_total_rating,
+    p.tori_score,
+    p.reviews_count,
+    p.reviews_dist_5star,
+    p.reviews_dist_4star,
+    p.reviews_dist_3star,
+    p.reviews_dist_2star,
+    p.reviews_dist_1star,
+    p.latitude,
+    p.longitude,
+    p.location,
+    p.price,
+    p.images_count,
+    p.temporarily_closed,
+    p.permanently_closed,
+    p.wheelchair_accessible,
+    p.claim_business,
+    p.last_poi_update,
+    p.last_review_extraction,
+    m.population AS muni_population,
+    c.level_1_category,
+    c.level_2_category,
+    c.level_3_category,
+    c.level_4_category,
+    c.search_level
+  FROM 
+    `tfg-boletin-turismo-burgos.ds_turismo_reviews.pois` p
+  LEFT JOIN 
+    `tfg-boletin-turismo-burgos.ds_turismo_reviews.municipalities` m 
+    ON p.id_municipality = m.id_municipality
+  LEFT JOIN 
+    `tfg-boletin-turismo-burgos.ds_turismo_reviews.categories` c 
+    ON p.id_category = c.id_category
+);
+
+-- 8. Vista de reseñas con información de pois, categoría y municipio
+CREATE OR REPLACE VIEW `tfg-boletin-turismo-burgos.ds_turismo_reviews.view_reviews` AS (
+  SELECT 
+    r.review_id,
+    r.poi_id,
+    r.reviewer_id,
+    r.reviewer_name,
+    r.reviewer_gender,
+    r.review_text,
+    r.review_text_original,
+    r.review_language,
+    r.review_rating,
+    r.review_date,
+    r.sentiment_label,
+    r.sentiment_score,
+    r.extraction_timestamp,
+    p.poi_name,
+    p.poi_municipality,
+    p.maps_category,
+    p.poi_total_rating,
+    p.location,
+    p.postal_code,
+    p.price,
+    p.tori_score,
+    c.level_1_category,
+    c.level_2_category,
+    c.level_3_category,
+    c.level_4_category
+  FROM 
+    `tfg-boletin-turismo-burgos.ds_turismo_reviews.reviews` r
+  LEFT JOIN 
+    `tfg-boletin-turismo-burgos.ds_turismo_reviews.pois` p 
+    ON r.poi_id = p.poi_id
+  LEFT JOIN 
+    `tfg-boletin-turismo-burgos.ds_turismo_reviews.categories` c 
+    ON p.id_category = c.id_category
+);
