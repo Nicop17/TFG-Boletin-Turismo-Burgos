@@ -1,0 +1,65 @@
+\capitulo{5}{Aspectos relevantes del desarrollo del proyecto}
+
+En este capítulo se explican los puntos más importantes del desarrollo práctico de este trabajo, los problemas reales de ingeniería de software que surgieron durante el diseño del pipeline y cómo se resolvieron para conseguir una herramienta segura, automática y optimizada en costes.
+
+\section{Estructura y división del código en archivos independientes}
+En primer lugar, se organizó el código en un único script que contenía todas las funciones del proyecto. A medida que fue creciendo, el programa empezaba a ser imposible de mantener, de entender y de reparar si algo fallaba. Para evitar este problema, se tomó la decisión de adoptar el diseño de un algoritmo ETL dividiéndolo de forma limpia en cuatro archivos de Python independientes. Cada uno de ellos se encarga de una fase concreta del proceso con sus respectivas funciones:
+
+\begin{itemize}
+    \item \textbf{\texttt{main\_scraper\_pipeline.py}:} Es el motor que arranca todo el programa. Su tarea es leer el archivo de configuración externa, poner en marcha el sistema de registros de errores (logs) y controlar la sucesión de bucles que van recorriendo la provincia de Burgos. Se encarga de llamar a los demás archivos en el orden correcto y de controlar que el flujo no se detenga.
+    
+    \item \textbf{\texttt{apify\_extractor.py} (Módulo de extracción):} Este archivo concentra todo el código que se conecta con la API de Apify. Su función es pedirle a la plataforma que inicie el proceso de copia de datos de Google Maps, vigilar cuándo termina de trabajar y descargarse la información de los puntos de interés o de las reseñas en bruto. Al dejar esta lógica aquí, si el día de mañana Apify cambia su forma de conectarse, solo habrá que parchear este archivo sin tocar el resto del sistema.
+    
+    \item \textbf{\texttt{review\_transformer.py} (Módulo de transformación):} Es el encargado de procesar los datos en bruto de las reseñas que se acaban de descargar. Utiliza librerías para limpiar los textos de las opiniones, traducir de forma automática las reseñas que dejen los turistas extranjeros, averiguar el género del usuario analizando su nombre de pila y aplicar el modelo de análisis de sentimiento.
+    
+    \item \textbf{\texttt{bgiquery\_loader.py} (Módulo de carga y consultas):} Es el script que se conecta directamente con el almacén de datos en la nube de Google BigQuery. Contiene las consultas SQL necesarias tanto para insertar los nuevos datos como para preguntar a la base de datos en qué estado se encuentran las tablas antes de empezar a trabajar.
+\end{itemize}
+
+Esta división permite que el código sea modular. Si por ejemplo se quiere mejorar el filtro de limpieza de los textos, solo hay que modificar el archivo \texttt{transformer.py}, garantizando que el sistema de extracción o la base de datos sigan funcionando exactamente igual y sin riesgo de romper nada.
+
+\section{Protección contra fallos y sistema de checkpoints)}
+Al ser un sistema que utiliza en gran medida herramientas que trabajan en la nube, existe la posibilidad de que falle el internet durante la ejecución, que las APIs de terceros sufran caídas, que los servidores externos se saturen y que las conexiones sufran microcortes. Si el programa se corta por culpa de un fallo de red, sería un desastre económico y de tiempo tener que empezar desde el principio en la siguiente ejecución, ya que se volverían a gastar créditos de la API de Apify de forma totalmente innecesaria.
+
+\subsection{Funcionamiento del guardado por lotes}
+El pipeline no trabaja con toda la provincia de golpe en la memoria del ordenador, sino que el proceso se realiza de forma independiente bloque a bloque. El script divide el trabajo en dos fases principales (Fase A para puntos de interés y Fase B para reseñas) y va guardando la información en BigQuery en cuanto termina cada lote pequeño de datos:
+\begin{itemize}
+    \item \textbf{En la Fase A (POIs):} El programa recorre los municipios y, dentro de cada uno, va categoría por categoría. En cuanto termina de extraer y procesar los puntos de interés de una categoría concreta en ese municipio, el módulo \texttt{bigquery\_loader.py} guarda ese lote inmediatamente en BigQuery. Justo después, escribe un registro de control en la tabla \texttt{scraper\_control} indicando el municipio, la categoría y la fecha y hora exacta del momento en el que se completa. Además, cuando se terminan todas las categorías de ese municipio, se actualiza la fecha global \texttt{last\_poi\_update} de extracción de POIs en la tabla de municipios.
+    
+    \item \textbf{En la Fase B (Reseñas):} El proceso se repite de forma individual punto de interés por punto de interés. Al terminar de procesar y aplicar el análisis de sentimiento a las opiniones de un sitio concreto, las guarda en la base de datos, actualiza su índice TORI y actualiza el campo \texttt{last\_review\_extraction} de ese POI con la fecha actual. Al acabar todos los sitios del municipio, actualiza también la fecha de extracción de reseñas de la tabla global de municipios.
+\end{itemize}
+
+\subsection{Lógica de reinicio inteligente}
+Gracias a que los datos y las fechas de control se van guardando de forma inmediata en cada paso del bucle, el pipeline está completamente protegido si el programa se queda colgado a mitad de la noche por un corte de luz o de red. 
+
+Al volver a arrancar el script, lo primero que hace el archivo \texttt{main\_scraper\-\_pipeline.py} es pedirle a \texttt{bigquery\_loader.py} que lea los tiempos de control en BigQuery. El programa utiliza una serie de fechas y márgenes de días configurables desde el archivo de configuración para comprobar qué elementos ya se han procesado recientemente. Con esta información, el script evita que los bucles vuelvan a pasar por todos aquellos elementos que ya han sido completados dentro del margen establecido. De este modo, se impide repetir el trabajo de forma innecesaria, ahorrando horas de procesamiento y protegiendo el dinero invertido en los créditos de las APIs. 
+
+Además, al seguir estrictamente el mismo orden de extracción (marcado por la ordenación de las consultas SQL a la base de datos), el pipeline continuará el trabajo exactamente en el punto exacto en el que se quedó, haciendo que la ejecución sea completamente previsible, ordenada y fácil de controlar para el administrador del sistema.
+
+\section{Desacoplamiento y configuración externa del sistema}
+Como buena práctica de ingeniería de software, se ha aislado por completo el comportamiento del programa de la lógica de programación mediante el uso del archivo externo \texttt{config.json}. Este fichero permite que cualquier usuario o técnico del Observatorio personalice y configure todos los aspectos de la ejecución desde fuera, sin tener que modificar ni una sola línea de código en los scripts de Python. A través de esta estructura centralizada se gestionan parámetros críticos de todo el sistema: desde las credenciales y rutas de las tablas de Google BigQuery, hasta las reglas de negocio del proyecto, como los umbrales de población para la búsqueda adaptativa, los filtros para forzar la ejecución en un único municipio o categoría concretos, y la configuración técnica del comportamiento del extractor, el traductor y el nivel de detalle de los archivos de \textit{logging}.
+
+\section{Optimización de costes de la API según los habitantes del municipio}
+Uno de los mayores retos técnicos y de gestión de este proyecto ha sido el control del coste económico de la API de Apify. El scraping masivo en Google Maps tiene un coste elevado por cada elemento extraído, y lanzar búsquedas idénticas en todos los rincones de la provincia por igual sería una gestión nefasta de los recursos. En la provincia de Burgos hay municipios muy grandes con miles de puntos de interés (como Burgos capital) y pueblos muy pequeños con apenas unas pocas decenas de habitantes donde la oferta turística y comercial es muy reducida.
+
+Si se programa el bucle para que busque siempre todas las categorías registradas independientemente del municipio, la API de Apify gastaría tiempo y créditos en hacer barridos geográficos que no devuelven ningún resultado.
+
+Para solucionar este problema de eficiencia, se diseñó una regla de optimización adaptativa basada en la población que cruza el tamaño de la localidad con un nivel de búsqueda asignado a cada categoría (del 1 al 3).
+
+Al leer la lista de municipios, el script comprueba el número de habitantes y adapta la intensidad de la búsqueda de forma dinámica en tres niveles (rural, semi-urbano y urbano). En municipios urbanos (de nivel 3), el flujo de ejecución activa el listado completo y exhaustivo de categorías, buscando todo tipo de etiquetas específicas para capturar toda la información. En los municipios semi-urbanos (de nivel 2), el sistema descarta las categorías más específicas e innecesarias que puedan cubrir otras más generales pero manteniendo un abanico amplio de opciones, mientras que en los municipios rurales (de nivel 1), el programa altera su comportamiento y recorta la lista de búsqueda dejando únicamente las categorías más básicas y esenciales (las de nivel 1).
+
+Al dejar fuera las búsquedas comerciales complejas en zonas rurales donde no existen, se optimiza al máximo la cuota de la API y se reduce drásticamente el coste final de operación.
+
+\section{Descubrimiento y guardado dinámico de nuevas categorías}
+El objetivo principal de esta funcionalidad es ir recopilando poco a poco todas las categorías de puntos de interés reales que existen en la provincia de Burgos para que, con cada nueva ejecución del pipeline, los resultados sean mejores, más precisos y el sistema sea capaz de encontrar nuevos puntos de interés más específicos. 
+
+Para lograrlo, el script incluye una lógica que va ampliando la base de datos de forma automática: cuando se encuentra un POI con una categoría de Google Maps que no estaba registrada, el sistema le asigna un identificador único y, de manera totalmente automática, el programa la guarda dinámicamente dentro de la taxonomía de la categoría con la que se estaba realizando el rastreo en ese momento, además de establecerle su mismo nivel de búsqueda, ya que se presupone una similitud o afinidad entre ambas. 
+
+Esto permite que el pipeline sea cada vez más inteligente y completo de forma autónoma, garantizando además que el cuadro de mando de Looker Studio actualice sus filtros visuales por sí solo y sin necesidad de tocar una sola línea de código de la aplicación.
+
+\section{Logging}
+Al dejar el pipeline ejecutándose de forma automática, los mensajes de la consola se acaban perdiendo o son imposibles de encontrar. Por este motivo, se eliminaron todas estas impresiones básicas del código (\texttt{print()}) y se implementó un sistema de registros estructurado mediante el módulo nativo de \textit{logging}. La gran ventaja es que ahora, cada vez que ocurre un evento, se guarda automáticamente la fecha, la hora exacta con milisegundos y la línea del script donde ha saltado \cite{python_logging_howto}. 
+
+Además, el sistema permite filtrar las trazas según las necesidades del momento: se utiliza el nivel \textit{DEBUG} para ver flujos internos detallados durante el desarrollo, el nivel \textit{INFO} para el seguimiento normal del pipeline, el nivel \textit{WARNING} para capturar advertencias de rendimiento o anomalías que no sean críticas, y el nivel \textit{ERROR} para registrar únicamente las excepciones graves que llegan a colgar o interrumpir algún módulo del programa.
+
+Para que esta monitorización sea realmente útil en el día a día, se configuró el \textit{logger} para que los registros se guarden a la vez en la consola y en archivos físicos ordenados por fecha dentro de la carpeta \texttt{logs}. Al hacerlo así, la información no se borra al apagar o reiniciar el contenedor, sino que se crea un historial permanente. Esto facilita mucho el mantenimiento del sistema, ya que permite revisar de forma rápida qué ha pasado o dónde ha fallado el programa en cualquier ejecución anterior sin tener que estar delante de la pantalla mientras se ejecuta.
+

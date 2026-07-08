@@ -1,0 +1,29 @@
+\capitulo{7}{Conclusiones y Líneas de trabajo futuras}
+En este último capítulo se exponen las conclusiones derivadas del diseño, desarrollo e implementación del proyecto. Asimismo, se incluye una valoración crítica del sistema actual y se proponen las principales líneas de trabajo futuras para continuar expandiendo y evolucionando la herramienta.
+
+\section{Conclusiones del proyecto}
+El desarrollo de este Trabajo de Fin de Grado ha permitido cumplir con éxito el objetivo principal: automatizar la recopilación y el procesamiento de las opiniones turísticas de la provincia de Burgos para su digitalización en el Boletín de Turismo. 
+
+Desde el punto de vista del Observatorio de Turismo de Burgos, se ha logrado aportar una solución práctica y directa que permite ver la realidad del sector desde las opiniones de los usuarios, lo que ayuda a que la gestión de la institución deje de depender de la recopilación manual de datos tradicionales, pasando a basarse en un flujo constante de información real y objetiva.
+
+A nivel personal, este proyecto ha supuesto un enorme reto de aprendizaje que me ha permitido enfrentarme por primera vez a un entorno de desarrollo real y aplicar los conocimientos de la carrera de una forma totalmente práctica. Trabajar e integrar tecnologías tan diversas como Python, las bases de datos en la nube con Google BigQuery, los paneles visuales de Looker Studio y el uso de APIs externas de extracción me ha ayudado a comprender cómo conectar diferentes herramientas para construir un sistema completo y robusto. 
+
+Por otro lado, la principal limitación que ha condicionado el desarrollo práctico del proyecto ha sido el coste económico de la API de Apify. Al implicar un gasto por cada elemento extraído de Google Maps, no fue posible realizar tantas ejecuciones de prueba como me hubiera gustado, ni tampoco descargar todo el histórico completo de la provincia de una sola vez como prueba final. Sin embargo, tener que lidiar con esta restricción presupuestaria real obligó a buscar soluciones de diseño más eficientes, lo que dio pie al desarrollo del sistema de checkpoints y a la optimización según la población de los municipios. Al final, enfrentarme a estos problemas de costes me ha aportado un gran aprendizaje como ingeniero, ya que me ha enseñado que el software no solo debe funcionar, sino que debe ser eficiente y adaptarse a los recursos disponibles en el mundo real.
+
+
+\section{Líneas de trabajo futuras}
+A partir de la arquitectura consolidada en este proyecto, se abren varias vías de desarrollo que permitirán expandir las capacidades de la plataforma y aportar nuevas capas de valor añadido al Observatorio de Turismo:
+
+\subsection{Ampliación de la cobertura geográfica y escalabilidad regional}
+Una de las continuaciones más naturales del proyecto es romper la barrera provincial y escalar el pipeline para dar cobertura al resto de la comunidad autónoma de Castilla y León. Dado que la taxonomía de categorías, la estructura de almacenamiento en BigQuery y la lógica de extracción en Python se han diseñado siguiendo un patrón completamente genérico, el sistema está preparado para incorporar nuevas provincias sin alterar su núcleo. Bastaría con alimentar la base de datos con los listados municipales correspondientes para que el pipeline comenzara a recopilar y enriquecer el boletín de turismo a nivel regional de forma inmediata.
+
+\subsection{Desarrollo de una interfaz de usuario unificada}
+Actualmente, el sistema funciona de manera desacoplada: el pipeline se configura y ejecuta mediante scripts de código y archivos de configuración, mientras que la visualización de los datos se realiza de manera externa en Looker Studio. Una línea de trabajo futura de gran interés es el desarrollo de una aplicación web o panel de administración unificado. Esta interfaz permitiría a los técnicos de la institución gestionar el archivo de configuración visualmente, lanzar o programar las ejecuciones del pipeline con un solo clic y visualizar los cuadros de mando analíticos directamente en la misma plataforma, centralizando toda la operativa en un único entorno de trabajo más moderno y accesible.
+
+\subsection{Evolución del motor de ejecución y modos de operación avanzados}
+Para dotar al pipeline de una mayor versatilidad y capacidad de adaptación ante diferentes escenarios de uso, se plantea la evolución del motor de ejecución mediante la inclusión de modos de ejecución avanzados seleccionables desde la configuración externa. Esta ampliación se estructuraría en dos grandes bloques funcionales:
+
+En primer lugar, un \textbf{selector de objetivos por fases}, que permita al usuario decidir mediante variables si desea ejecutar el flujo completo del pipeline, realizar únicamente tareas de descubrimiento de nuevos puntos de interés (Fase A) o centrarse exclusivamente en la extracción de nuevas reseñas para los establecimientos que ya tenemos registrados en la base de datos (Fase B). Esto daría un control absoluto sobre el uso de los recursos según las necesidades analíticas de cada momento.
+
+En segundo lugar, un \textbf{optimizador de velocidad para entornos rurales}. Para agilizar las ejecuciones en municipios pequeños de nivel 1, se propone el desarrollo de un modo de ejecución rápido alternativo al actual. Mientras que el modo normal itera de forma consecutiva por cada una de las categorías básicas, el modo rápido permitiría lanzar una única consulta geográfica global unificada en la API para capturar todos los recursos del pueblo de una sola vez ahorrando muchas horas de ejecución, pero obteniendo resultados menos precisos. El pipeline controlaría este comportamiento mediante una variable marcada en la configuración, permitiendo al administrador elegir entre un rastreo lento y exhaustivo por categorías o una actualización exprés en núcleos de baja densidad poblacional.
+

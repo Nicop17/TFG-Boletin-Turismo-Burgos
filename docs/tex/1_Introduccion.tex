@@ -1,0 +1,47 @@
+\capitulo{1}{Introducción}
+
+\section{Contexto del proyecto}
+La provincia de Burgos cuenta con una gran extensión territorial y una marcada dispersión geográfica, caracterizada por la existencia de una gran cantidad de pequeños municipios rurales junto a unos pocos núcleos urbanos concentrados. En este escenario, el turismo sostenible y de interior se ha convertido en un motor clave para la revitalización económica y la creación de empleo, actuando como una herramienta directa frente al reto de la despoblación rural. Sin embargo, para que las administraciones y los gestores locales puedan tomar decisiones estratégicas eficaces, es imprescindible conocer de primera mano la situación y la reputación online de sus recursos turísticos.
+
+Llevar a cabo una recopilación de datos de forma manual, revisando uno a uno las opiniones, valoraciones y el estado de los puntos de interés (POIs) repartidos por toda la provincia, resulta una tarea totalmente inviable en términos de tiempo y costes económicos. Es aquí donde se justifica el desarrollo de este proyecto, que propone la creación de un sistema automatizado capaz de monitorizar de forma masiva, continua e incremental la huella digital del sector turístico burgalés a través de plataformas como Google Maps, transformando los datos cualitativos dispersos en información estructurada y de alto valor analítico.
+
+\section{Resumen del contenido del proyecto}
+El núcleo de este Trabajo Fin de Grado consiste en el diseño y desarrollo de un pipeline (línea de procesamiento) ETL (Extracción, Transformación y Carga) completamente automatizado y resiliente. El sistema inicia su flujo conectándose con la API externa de Apify, encargada de realizar el la extracción de datos masiva y automatizada en la web de las fichas comerciales o lugares de interés y sus respectivas reseñas de Google Maps. 
+
+Una vez extraídos los datos en bruto, el programa ejecuta de forma local una serie de transformaciones basadas en el procesamiento del lenguaje natural (NLP). Entre estas tareas se incluye un filtro de calidad de texto, la traducción automática de reseñas internacionales, la estimación del género del autor por su nombre y un análisis predictivo del sentimiento de los comentarios. Finalmente, los datos enriquecidos se cargan en bloque de forma eficiente en un almacén de datos analítico en Google BigQuery. Esta base de datos se conecta de manera directa con un cuadro de mando interactivo en Looker Studio, permitiendo actualizar los gráficos de reputación del Boletín de Turismo en tiempo real y sin intervención humana.
+
+\section{Estructura de la documentación}
+El cuerpo documental de este trabajo se compone de la memoria principal, organizada en siete capítulos, y un conjunto de anexos técnicos que profundizan en los detalles de la especificación e implementación:
+
+Los capítulos que forman la memoria técnica principal se estructuran de la siguiente manera:
+Los capítulos que forman la memoria técnica principal se estructuran de la siguiente manera:
+\begin{itemize}
+    \item \textbf{Capítulo 1 (Introducción):} Define el marco inicial del proyecto, justificando la motivación del software frente a la situación turística regional y enumerando el contenido global de la documentación.
+    \item \textbf{Capítulo 2 (Objetivos del proyecto):} Detalla la meta general del sistema y los hitos técnicos específicos que se pretenden alcanzar en cuanto a optimización, almacenamiento y automatización.
+    \item \textbf{Capítulo 3 (Conceptos teóricos):} Expone los fundamentos del sistema, detallando el proceso ETL, el funcionamiento de las APIs y técnicas de \textit{web scraping}, las diferencias entre bases de datos relacionales y analíticas, los modelos de procesamiento del lenguaje natural para el análisis de sentimiento y el cálculo matemático del índice TORI.
+    \item \textbf{Capítulo 4 (Técnicas y herramientas):} Presenta la metodología ágil basada en \textit{Sprints} y Kanban, y justifica la elección de toda la infraestructura tecnológica utilizada: desde el control de versiones y automatización en la nube (Git y GitHub Actions) hasta las herramientas de extracción (Apify), almacenamiento (BigQuery), contenedorización (Docker) y visualización (Looker Studio), detallando además los lenguajes y librerías empleados.
+    \item \textbf{Capítulo 5 (Aspectos relevantes del desarrollo del proyecto):} Explica la implementación práctica del software, detallando la división modular del código en archivos independientes, la tolerancia a fallos mediante el sistema de \textit{checkpoints} por lotes, el desacoplamiento lógico mediante el archivo \texttt{config.json}, la regla adaptativa de precisión según la población, el descubrimiento dinámico de categorías dentro de la taxonomía y la integración del sistema estructurado de \textit{logging}.
+    \item \textbf{Capítulo 6 (Trabajos relacionados):} Compara este proyecto con el antecedente directo del Trabajo de Fin de Grado presentado el año anterior, analizando las mejoras estratégicas en almacenamiento, automatización y visualización, y expone la alineación del pipeline con el marco nacional de Destinos Turísticos Inteligentes (DTI) gestionado por SEGITTUR.
+    \item \textbf{Capítulo 7 (Conclusiones y líneas de trabajo futuras):} Resume la experiencia práctica del proyecto, evalúa el cumplimiento de los objetivos desde una perspectiva personal y plantea mejoras para la evolución del sistema.
+\end{itemize}
+
+Por otra parte, se adjuntan los siguientes apéndices con la documentación técnica y de soporte en el documento de los anexos:
+\begin{itemize}
+    \item \textbf{Apéndice A (Plan de proyecto):} Contiene la planificación temporal detallada del proyecto organizada por sprints de desarrollo y el estudio de viabilidad económica correspondiente.
+    \item \textbf{Apéndice B (Especificación de requisitos):} Define los objetivos generales del sistema junto con el catálogo de requisitos funcionales y no funcionales, incluyendo el diagrama de casos de uso y sus tablas descriptivas individuales.
+    \item \textbf{Apéndice C (Especificación de diseño):} Detalla el plano técnico del sistema mediante tres enfoques: el diseño de datos con su diagrama entidad-relación, el diseño arquitectónico y el diseño procedimental mediante un diagrama de secuencia que representa el funcionamiento interno del código en tiempo de ejecución.
+    \item \textbf{Apéndice D (Manual del programador):} Recoge toda la documentación técnica para desarrolladores, detallando el entorno de desarrollo, la estructura de directorios, el funcionamiento de las herramientas, el proceso de instalación y ejecución, y el plan de pruebas del sistema.
+    \item \textbf{Apéndice E (Manual de usuario):} Sirve como guía práctica orientada al usuario final para explicar el funcionamiento y la interacción con el cuadro de mando de Looker Studio.
+    \item \textbf{Apéndice F (Objetivos de Desarrollo Sostenible):} Analiza el impacto del proyecto y su relación directa con los Objetivos de Desarrollo Sostenible (ODS) de las Naciones Unidas.
+\end{itemize}
+
+\section{Materiales entregados}
+Junto con la documentación de la memoria y los anexos, se aporta un repositorio digital estructurado que contiene todas las herramientas y recursos necesarios para la reconstrucción, configuración y ejecución del sistema desarrollado. Los materiales entregados se distribuyen de la siguiente forma:
+
+\begin{itemize}
+    \item \textbf{Código fuente de la aplicación (\ruta{src/}):} Contiene los scripts desarrollados en Python 3.13 encargados del control global del pipeline (\ruta{main\_scraper\_pipeline.py}), la extracción de datos (\ruta{apify\_extractor.py}), la analítica y limpieza de las reseñas extraídas (\ruta{review\_transformer.py}) y la carga en la nube de la información (\ruta{bigquery\_loader.py}), junto con los scripts que ejecutan el archivo de configuración y el logger.
+    \item \textbf{Módulo de base de datos (\ruta{database/}):} Incluye el archivo (\ruta{schema.sql}) con las sentencias de creación de las tablas y vistas lógicas en Google BigQuery, acompañado de los ficheros CSV de carga inicial para rellenar los datos maestros de municipios, categorías y códigos postales.
+    \item \textbf{Estructura de configuración (\ruta{config/}):} Archivo JSON centralizado (\ruta{config.json}) que permite al usuario modificar de forma inmediata los filtros de ejecución, los márgenes de días para las actualizaciones, los identificadores de las tablas, etc.
+    \item \textbf{Infraestructura y despliegue:} Archivos preconfigurados para la contenerización del sistema en local mediante Docker (\ruta{Dockerfile} y \ruta{docker-compose.yml}) y para la automatización de la ejecución programada en la nube mediante GitHub Actions (\ruta{run\_scraper.yml}).
+    \item \textbf{Cuadro de mando:} Enlace de acceso y configuración del informe interactivo diseñado en Looker Studio, preparado para leer de forma dinámica las vistas semánticas del almacén de datos de BigQuery.
+\end{itemize}

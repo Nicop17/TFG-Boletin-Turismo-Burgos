@@ -1,0 +1,34 @@
+\chapter{Trabajos Relacionados}
+
+En este capítulo se analizan los antecedentes y los proyectos relacionados con este trabajo. En primer lugar, se compara este proyecto con el TFG realizado el año pasado en la Universidad de Burgos, que abordó el mismo problema pero con un enfoque tecnológico diferente. En segundo lugar, se explica cómo se alinea este sistema con los planes de turismo digital que existen actualmente en España, concretamente con el programa de Destinos Turísticos Inteligentes (DTI) gestionado por el gobierno \cite{segitturdti}.
+
+\section{Comparativa con el proyecto anterior}
+
+El antecedente más directo de este trabajo es el TFG titulado \textit{"Digitalización del Boletín de Turismo del Observatorio de la Provincia de Burgos"}, presentado en julio de 2025 \cite{nunez2025}. Ese trabajo dio un primer paso para recoger opiniones de usuarios de internet sobre los recursos turísticos de la provincia. Sin embargo, la forma de resolver el problema a nivel técnico fue muy distinta. Para entender por qué la solución actual mejora a la anterior, se detallan las diferencias clave en tres aspectos:
+
+\subsection{Almacenamiento y costes}
+El proyecto del año pasado utilizaba \textit{Azure SQL Database} (el motor de base de datos relacional de Microsoft) en la nube, que se gestionaba visualmente con SQL Server Management Studio (SSMS). Aunque cumplía con su función de guardar los datos, este tipo de bases de datos genera costes fijos mensuales en Azure por mantener el servidor aprovisionado y encendido continuamente.
+
+Para este proyecto se ha cambiado la estrategia utilizando \textit{Google BigQuery}. Al ser una herramienta orientada al análisis de grandes volúmenes de datos y de tipo serverless (sin servidor fijo), solo se paga por el almacenamiento real y por las consultas que se ejecutan, eliminando los costes por inactividad. Además, para que la actualización de los datos sea más rápida y eficiente, se han configurado vistas SQL y sentencias \textit{MERGE} que solo añaden los datos nuevos sin tener que procesar todo desde cero.
+
+\subsection{Automatización del flujo de trabajo (ETL)}
+El flujo de trabajo del proyecto anterior estaba dividido en varias partes y no era automático. Tenía tres scripts de Python independientes para extraer y limpiar los datos. Después, para tareas más avanzadas, se dependía de ejecutar manualmente varios notebooks en la plataforma \textit{Google Colab}. Por último, esos datos se subían de forma independiente a la base de datos.
+
+En este nuevo proyecto se ha unificado todo el proceso. Ahora no hay que ejecutar varios scripts ni usar herramientas externas a mano; un único pipeline programado en Python se encarga de todo de forma secuencial. La extracción de datos con Apify y la transformación y enriquecimiento de las reseñas se ejecutan de principio a fin, guardando los resultados directamente en la nube sin necesidad de que un administrador supervise cada paso.
+
+\subsection{Visualización e integración en el observatorio}
+El TFG anterior utilizaba \textit{Power BI} para crear el cuadro de mando y se subía a una web creada con \textit{Power Pages}. Esto añade costes de licencias comerciales y complica la integración con la web real del Observatorio de Turismo de Burgos. El servidor del observatorio tiene restricciones de administración y no permite ejecutar scripts de Python en el backend.
+
+Para solucionar esto, en este proyecto se ha utilizado \textit{Looker Studio}, que es una herramienta gratuita y se conecta de forma directa con BigQuery. Como Looker Studio permite insertar los gráficos fácilmente en cualquier web mediante un código estándar, el cuadro de mando se puede añadir directamente en el servidor del observatorio.
+
+\section{Marcos de referencia nacionales}
+
+Este proyecto se enmarca dentro de la estrategia actual del Gobierno de España para digitalizar el sector turístico. El principal referente en este ámbito es el \textbf{Programa de Destinos Turísticos Inteligentes (DTI)}, impulsado por la Secretaría de Estado de Turismo y gestionado por SEGITTUR. Este programa evalúa a los destinos en cinco áreas básicas: gobernanza, innovación, tecnología, accesibilidad y sostenibilidad.
+
+La herramienta desarrollada en este TFG se alinea con los apartados de tecnología e innovación por los siguientes motivos:
+
+\begin{itemize}
+    \item \textbf{Sistemas de Inteligencia Turística (SIT):} El modelo DTI impulsa la creación de herramientas que recojan de forma automática datos e indicadores de interés para ayudar a las instituciones a tomar decisiones estratégicas. Este pipeline cumple esa función a nivel provincial al automatizar por completo la captura de datos de Google Maps, una de las plataformas que más volumen de opiniones y recursos turísticos concentra en la actualidad.
+    
+    \item \textbf{Medición de la reputación online:} Las estadísticas oficiales (como las del INE) solo miden datos cuantitativos, como el número de personas que se alojan en un hotel. El programa DTI pide que también se mida la calidad de la experiencia del turista. Al extraer reseñas de Google Maps y calcular el Índice de Reputación Online Turística (TORI), este proyecto permite conocer de forma objetiva qué opinan los turistas sobre los monumentos y la hostelería de Burgos, entre otros puntos de interés.
+\end{itemize}

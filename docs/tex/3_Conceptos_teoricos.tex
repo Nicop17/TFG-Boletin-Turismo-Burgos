@@ -1,0 +1,107 @@
+\capitulo{3}{Conceptos teóricos}
+
+En este capítulo se describen los conceptos técnicos y los fundamentos computacionales necesarios para comprender el funcionamiento de los sistemas modernos de información. En lugar de analizar herramientas particulares, este apartado explica de forma teórica los flujos de datos, los mecanismos de comunicación entre programas, los modelos de almacenamiento y las técnicas de análisis de texto que se utilizan en la ingeniería de software actual.
+
+\section{Algoritmo ETL}
+En el ámbito de la ingeniería de datos, es habitual necesitar mover información desde diferentes lugares de origen hacia un almacén centralizado para poder analizarla \cite{gcp_etl_guide}. El proceso estándar para realizar esta tarea se conoce como ETL, que son las siglas de Extracción, Transformación y Carga. Este proceso funciona como una línea de producción dividida en tres etapas independientes:
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.75\textwidth]{algoritmo_etl.png}
+    \caption{Representación de las tres fases del proceso ETL (Extracción, Transformación y Carga).}
+    \label{fig:proceso_etl}
+\end{figure}
+
+\subsection{Extracción}
+La fase de extracción consiste en obtener los datos en bruto desde las fuentes originales, que pueden ser archivos de texto, páginas web o bases de datos externas. El objetivo principal de esta etapa es leer la información de forma segura sin alterar el origen. Los sistemas automáticos de extracción deben estar preparados para gestionar problemas comunes como cortes en la conexión a internet, lentitud en las respuestas o la recepción de datos incompletos. En esta fase, el sistema simplemente se encarga de descargar la información y dejarla temporalmente en una zona de memoria para su posterior procesamiento.
+
+\subsection{Transformación}
+La transformación es la etapa más compleja y donde se aplica la lógica del sistema. Los datos descargados en bruto rara vez están listos para ser utilizados directamente, ya que suelen contener errores o formatos diferentes. En esta fase se realizan tres tareas fundamentales:
+\begin{itemize}
+    \item \textbf{Limpieza de datos:} Se eliminan los registros duplicados, se corrigen los textos dañados y se decide qué hacer con los valores que están vacíos.
+    \item \textbf{Homogeneización:} Se unifican los formatos. Por ejemplo, se configuran todas las fechas para que sigan el mismo orden (Año-Mes-Día) o se transforman los textos a minúsculas para facilitar las búsquedas.
+    \item \textbf{Enriquecimiento:} Se añade valor a los datos originales. Esto se consigue realizando cálculos matemáticos o aplicando modelos inteligentes para generar información nueva a partir de la ya existente.
+\end{itemize}
+
+\subsection{Carga}
+La fase de carga consiste en guardar de forma definitiva los datos ya limpios y transformados en el almacén final. Existen dos formas de hacerlo: la carga completa, que borra lo anterior y escribe todo de nuevo, y la carga incremental. La carga incremental es mucho más eficiente porque consiste en revisar qué datos son nuevos o han cambiado desde la última vez que se ejecutó el proceso, añadiendo únicamente esas filas. Para evitar que los datos se dupliquen, se utilizan instrucciones lógicas que comprueban si el registro ya existe en el almacén. Si ya existe se actualiza, y si no, se inserta como uno nuevo.
+
+\section{Interfaces de Programación de Aplicaciones (APIs)}
+Una Interfaz de Programación de Aplicaciones, conocida habitualmente como API, es un conjunto de reglas y funciones que permite que dos programas informáticos se comuniquen entre sí de forma directa. Se puede entender como un puente o un intermediario técnico: un programa le pide datos a la API (petición) y la API le devuelve la información solicitada (respuesta) en un formato organizado que ambos ordenadores entienden, como por ejemplo el formato JSON\cite{mdn_api_rest}.
+
+Las APIs sirven para que los desarrolladores puedan aprovechar los datos o las funciones de otras empresas sin necesidad de saber cómo están programadas por dentro. Por ejemplo, permiten pedir la información del tiempo a un servicio meteorológico o consultar mapas de una empresa externa. 
+
+A pesar de su utilidad, cuando se diseñan sistemas que necesitan descargar un volumen muy grande de datos históricos, las APIs suelen presentar limitaciones importantes impuestas por los propios proveedores:
+\begin{itemize}
+    \item \textbf{Límites de peticiones:} Para evitar que sus servidores se colapsen, los proveedores limitan el número de veces que se puede llamar a la API al día o al minuto.
+    \item \textbf{Restricciones de cantidad:} Muchas APIs restringen el número de resultados devueltos. Por ejemplo, al pedir opiniones de un lugar, el sistema puede estar limitado a entregar únicamente las 5 más recientes, haciendo imposible consultar el histórico completo.
+    \item \textbf{Costes financieros:} El acceso a datos masivos a través de APIs oficiales suele estar sujeto a tarifas de pago por cada petición realizada, lo que puede encarecer los proyectos con presupuestos limitados.
+\end{itemize}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.85\textwidth]{arquitectura_api.jpg}
+    \caption{Flujo de comunicación basado en arquitectura API REST utilizando métodos HTTP y formato de datos JSON.}
+    \label{fig:arquitectura_api}
+\end{figure}
+
+\subsection{Técnicas de extracción web (Web Scraping)}
+Cuando las APIs oficiales no existen o están demasiado limitadas para el objetivo del proyecto, se utilizan las técnicas de extracción web o \textit{Web Scraping}. Esta metodología consiste en programar un script automático que actúa como si fuera un navegador web utilizado por una persona. El programa entra en la página web, imita acciones humanas (como hacer clic en botones o desplazarse hacia abajo en la pantalla) y lee la información directamente del código de la página para guardarla de forma estructurada \cite{realpython_scraping}.
+
+Las páginas web actuales no son estáticas, sino que cargan su contenido poco a poco a medida que interactuamos con ellas. Por ello, los programas de extracción modernos deben ser capaces de interpretar toda la estructura interna de la página web (el árbol de elementos visuales) y buscar la información utilizando identificadores o etiquetas específicas del diseño. Esto permite saltarse las restricciones de espacio de las APIs convencionales y capturar la información tal y como se muestra en la pantalla.
+
+\section{Modelos de almacenamiento: Bases de datos relacionales y analíticas}
+La forma en que se guardan los datos en el disco duro determina la velocidad a la que el sistema podrá consultar la información después. En la ingeniería de software existen dos formas principales de organizar el almacenamiento según el uso que se le vaya a dar al sistema \cite{gcp_bigquery_storage}:
+
+\subsection{Bases de datos tradicionales (Orientadas a filas)}
+Son las bases de datos relacionales de toda la vida, diseñadas para el trabajo diario de las aplicaciones (como registrar un usuario o guardar una compra). Físicamente, guardan toda la información de una misma fila junta en el disco duro. Esto es ideal para buscar, escribir o modificar la ficha completa de un elemento concreto muy rápido. Sin embargo, si un analista quiere calcular la media de una columna numérica entre millones de registros, el ordenador se ve obligado a leer todas las filas enteras de la base de datos con todos sus textos y campos adicionales, lo que satura la memoria y vuelve el proceso muy lento.
+
+\subsection{Bases de datos analíticas (Orientadas a columnas)}
+Son almacenes de datos optimizados para analizar grandes volúmenes de información histórica y crear cuadros de mando. A diferencia de las tradicionales, estas bases de datos rompen las tablas verticalmente y guardan cada columna en un archivo independiente en el disco duro. Si un programa necesita hacer una suma o calcular la media de una variable, el motor del sistema va directamente al archivo de esa columna y lee solo esos números, ignorando por completo el resto de los textos o datos de la tabla. Esto reduce de forma drástica la cantidad de información que procesa el ordenador, permitiendo responder a consultas complejas en pocos segundos y con un consumo mínimo de recursos.
+
+\section{Procesamiento del lenguaje natural y análisis de sentimiento}
+El Procesamiento del Lenguaje Natural (NLP) es la rama de la inteligencia artificial que busca que los ordenadores entiendan, interpreten y operen con el lenguaje humano tal y como lo hacemos las personas. Como los ordenadores solo entienden de matemáticas y números, el texto escrito debe pasar por un proceso de traducción numérica antes de poder ser analizado.
+
+\subsection{El concepto de Tokenización}
+La tokenización es el paso inicial para que un ordenador pueda procesar cualquier texto. Consiste en trocear una cadena de texto continua en unidades mínimas con significado llamadas \textit{tokens}. En lugar de separar las frases simplemente por palabras completas (lo que daría problemas con las faltas de ortografía o las palabras inventadas), los sistemas modernos rompen el texto en pequeñas sílabas o fragmentos comunes de letras.
+
+Una vez que el texto está troceado, a cada fragmento se le asigna un número identificador único según un diccionario estático. De esta forma, una frase de texto libre se convierte en una lista de números. Tras este paso, el sistema traduce esos números en coordenadas dentro de un espacio matemático, permitiendo que las palabras que tienen significados similares o que suelen ir juntas queden guardadas cerca las unas de las otras.
+
+\subsection{Modelos basados en contexto (Transformers)}
+Los sistemas antiguos analizaban las palabras de una frase una a una de forma aislada, lo que hacía que no entendieran el significado real cuando había negaciones (como "no es bueno") o ironías. Los modelos actuales utilizan un mecanismo llamado atención \cite{huggingface_course}. Este principio permite al sistema analizar todas las palabras de una frase al mismo tiempo y calcular matemáticamente cómo influye cada palabra en el significado de las demás. Así, el ordenador entiende el contexto global de la frase antes de tomar una decisión.
+
+\subsection{Cálculo del sentimiento}
+El análisis de sentimiento aprovecha esta comprensión del contexto para clasificar la carga emocional de un texto. El modelo analiza los números de la frase filtrados por el mecanismo de atención y calcula la probabilidad de que el comentario sea positivo, neutro o negativo. Para poder trabajar con este dato en ingeniería de software, estas probabilidades se transforman en una nota numérica continua llamada puntuación de sentimiento. Esta nota se ajusta obligatoriamente en un rango que va desde $-1$ (para los textos con un enfado o insatisfacción absoluta) hasta $1$ (para los textos con una satisfacción máxima), siendo el valor $0$ para los comentarios neutrales \cite{pysentimiento_git}.
+
+\section{Índice TORI}
+En la analítica de datos, las puntuaciones simples que ponen los usuarios (como las notas de 1 a 5 estrellas en Google Maps) no siempre reflejan la realidad de forma justa. Esto ocurre por el sesgo de los extremos: las personas tienden a dejar una nota en internet únicamente cuando están muy enfadadas o muy contentas, por lo que la media de estrellas suele estar desvirtuada.
+
+Para corregir esto, se utilizan los indicadores compuestos, que consisten en una fórmula matemática que junta varias medidas diferentes para sacar una única nota final más equilibrada. El \textit{Tourism Online Reputation Index} (TORI) es un índice diseñado para el sector turístico que calcula la reputación real de un punto de interés combinando dos fuentes de información: la valoración de estrellas física de la plataforma y la media del sentimiento de los textos analizada por el ordenador. Como estas puntuaciones vienen dadas originalmente en escalas y amplitudes diferentes, el modelo requiere un proceso de escalamiento matemático para poder compararlas:
+
+\begin{itemize}
+    \item \textbf{Amplitud de las estrellas:} Las valoraciones de Google Maps van del 1 al 5, lo que representa una amplitud de 4 puntos.
+    \item \textbf{Amplitud del sentimiento:} El cálculo del análisis de sentimiento puede tener diferentes rangos de negativo a positivo, por ejemplo de -1 a 1, lo que representa una amplitud de 2 puntos.
+\end{itemize}
+
+Para que ambas partes compartan una escala homogénea, el diseño del sistema realiza un escalado automático basado en dos topes numéricos variables fijados en la configuración del sistema (\texttt{max\_score\_rating} y \texttt{max\_score\_sentiment}). Estos dos números representan el total de puntos máximos que se le quiere dar a cada componente dentro del índice global, lo que permite modificar el peso o la importancia de cada una de las partes según los criterios del analista, asegurando que el mínimo de ambas sea siempre 0 para facilitar su comparación.
+
+Por ejemplo, si a la valoración de estrellas se le asigna un tope de 7 y al sentimiento un tope de 3, la escala final del índice TORI se moverá en un rango de 0 a 10, otorgando un 70\% de importancia a las estrellas y un 30\% al texto de las opiniones. Si se prefiere una escala sobre 100, bastará con indicar una combinación de topes que sumen dicho valor (como 50 y 50), generando un rango de TORI entre 0 y 100.
+
+Para ejecutar este comportamiento de forma dinámica, el sistema calcula en tiempo de ejecución dos constantes de proporcionalidad ($k_{\text{rating}}$ y $k_{\text{sentiment}}$):
+\begin{itemize}
+    \item La constante $k_{\text{rating}}$ se obtiene dividiendo el tope deseado para las estrellas entre 4 (su amplitud original).
+    \item La constante $k_{\text{sentiment}}$ se obtiene dividiendo el tope deseado para el sentimiento entre 2 (su amplitud original).
+\end{itemize}
+
+A partir de estas constantes, el cálculo matemático aplica un desplazamiento lineal a las variables originales para unificar sus puntos de partida en una base cero común:
+\begin{itemize}
+    \item A la nota media de estrellas (\texttt{poi\_total\_rating}) se le resta 1 para desplazar su rango de [1, 5] a [0, 4], multiplicándose después por su constante para expandirla al tope configurado.
+    \item A la media aritmética de las puntuaciones de sentimiento (\texttt{sentiment\_score}) se le suma 1 para eliminar los valores negativos y desplazar su rango de [-1, 1] a [0, 2], multiplicándose igualmente por su constante de expansión.
+\end{itemize}
+
+La fórmula matemática definitiva que unifica este diseño y calcula el valor del índice final se estructura de la siguiente manera:
+
+$$ \text{tori\_score} = \left( k_{\text{rating}} \times (\text{poi\_total\_rating} - 1) \right) + $$
+$$ \left( k_{\text{sentiment}} \times (\text{AVG}(\text{sentiment\_score}) + 1) \right) $$
+
+Este planteamiento teórico permite cambiar la escala total o los pesos del índice en cualquier momento simplemente modificando los parámetros de entrada del sistema, garantizando la flexibilidad de la métrica sin necesidad de alterar la estructura lógica de la consulta o el código del software.

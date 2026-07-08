@@ -1,0 +1,23 @@
+\capitulo{2}{Objetivos del proyecto}
+
+Este capítulo explica cuáles son los objetivos que se persiguen con la realización del proyecto. Para estructurar correctamente el diseño del sistema desde la perspectiva de la ingeniería de software, estas metas se dividen en dos grandes bloques: aquellos objetivos marcados de forma directa por los requisitos funcionales del software que se va a construir, y aquellos objetivos de carácter puramente técnico y metodológico que plantea la puesta en práctica e implementación del pipeline en un entorno de producción real.
+
+\section{Objetivos funcionales}
+Los objetivos funcionales definen las tareas analíticas y de procesamiento de datos que la aplicación debe resolver para cumplir las necesidades del Observatorio de Turismo:
+
+\begin{itemize}
+    \item \textbf{Extracción automatizada de información turística:} El sistema debe ser capaz de recopilar de forma automática los puntos de interés de la provincia de Burgos y todas sus reseñas asociadas directamente desde Google Maps, obteniendo la información detallada de cada uno.
+    \item \textbf{Clasificación taxonómica por niveles:} Desarrollar una lógica interna para organizar y clasificar las categorías de Google Maps en varios niveles establecidos, asignando correctamente cada categoría a su correspondiente punto de interés.
+    \item \textbf{Cálculo del TORI:} Implementar en el sistema las fórmulas necesarias para calcular el índice de reputación online TORI de los establecimientos, permitiendo valorar el nivel de satisfacción real de los visitantes.
+    \item \textbf{Panel de visualización interactivo:} Diseñar un cuadro de mando centralizado que unifique los datos extraídos para que los analistas puedan consultar, filtrar y estudiar la información provincial de forma visual.
+\end{itemize}
+
+\section{Objetivos técnicos}
+Los objetivos técnicos detallan las herramientas utilizadas, la integración y las restricciones tecnológicas que condicionan el desarrollo:
+
+\begin{itemize}
+    \item \textbf{Restricción de la plataforma de visualización:} Debido a las limitaciones de infraestructura del servidor del Observatorio de Turismo, se establece el uso obligatorio de Looker Studio como herramienta de visualización para asegurar su futura integración web.
+    \item \textbf{Automatización completa en la nube:} Diseñar la arquitectura para que el sistema funcione de manera autónoma y periódica sin depender de la ejecución manual desde un ordenador personal, logrando que el sistema se active, actualice la base de datos y refresque el dashboard por sí solo.
+    \item \textbf{Almacenamiento analítico gestionado:} Utilizar un almacén de datos en la nube (BigQuery) en lugar de una base de datos relacional local tradicional. Esta elección técnica busca garantizar que la información esté siempre accesible y conectada de forma directa con la capa de visualización.
+    \item \textbf{Portabilidad mediante contenedores:} Empaquetar todo el entorno de desarrollo y las librerías lógicas del proyecto utilizando contenedores de Docker, asegurando que el software sea reproducible y funcione exactamente igual independientemente del ordenador o servidor donde se despliegue.
+\end{itemize}
