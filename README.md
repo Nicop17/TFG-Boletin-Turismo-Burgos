@@ -1,4 +1,4 @@
-# Trabajo de Fin de Grado: Digitalización del Boletín de Turismo del Observatorio de la Provincia de Burgos
+# Trabajo de Fin de Grado: Evolución y Optimización de la Digitalización del Boletín de Turismo de la Provincia de Burgos
 
 ## Descripción
 Este repositorio contiene el código fuente, la infraestructura y la configuración de mi **Trabajo de Fin de Grado** para el Grado en Ingeniería Informática en la Universidad de Burgos (UBU). El objetivo principal del proyecto es automatizar por completo la recopilación, limpieza y análisis de reseñas de usuarios para el Observatorio de Turismo de la Provincia de Burgos mediante una arquitectura automática basada en la nube.
