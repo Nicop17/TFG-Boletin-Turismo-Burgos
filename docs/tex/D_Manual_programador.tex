@@ -71,7 +71,7 @@ Para poder trabajar con el código fuente, mantener el sistema o realizar modifi
         \item \textbf{Ejecución programada (\texttt{schedule - cron}):} Añadiendo el schedule con un cron, permite automatizar la ejecución del script en segundo plano utilizando el formato estándar de temporizadores de Unix (\textit{Cron Job}), compuesto por cinco campos: 
         \begin{itemize}
             \item \textbf{Minuto (0 - 59):} Minuto de la hora en el que se lanza.
-            \item \textbf{Hora (0 - 23):} Hora del día en formato de 24 horas. GitHub Actions trabaja siempre con la hora **UTC**.
+            \item \textbf{Hora (0 - 23):} Hora del día en formato de 24 horas. GitHub Actions trabaja siempre con la hora UTC.
             \item \textbf{Día del mes (1 - 31):} Día concreto del mes en el que se desea ejecutar.
             \item \textbf{Mes (1 - 12 o nombres de tres letras como \texttt{JAN-DEC}):} Mes en el que se quiere ejecutar.
             \item \textbf{Día de la semana (0 - 7 o nombres como \texttt{SUN-SAT}):} Donde el \texttt{0} y el \texttt{7}) representan el domingo, el \texttt{1} el lunes, el \texttt{2} el martes, y así sucesivamente hasta el \texttt{6} (sábado).
@@ -393,17 +393,18 @@ Para poner en marcha el proyecto por primera vez, se deben seguir estos pasos en
 Para poder gestionar el proyecto, modificar sus parámetros y guardar los cambios de forma segura, se deben preparar las herramientas de desarrollo en el ordenador local:
 
 \begin{enumerate}
-\item \textbf{Instalación del editor (Visual Studio Code):} Se debe descargar e instalar el entorno de desarrollo \textit{Visual Studio Code}. Una vez instalado, servirá como el centro de mando para modificar el archivo de configuración \ruta{config/config.json}, gestionar las credenciales y abrir las terminales de comandos.
+\item \textbf{Instalación de Git (Control de versiones):} Descargar e instalar \textbf{Git} desde su página web oficial \url{https://git-scm.com/}. Durante el asistente de instalación en Windows, se recomienda mantener las opciones por defecto, asegurando que esté activa la configuración para permitir la ejecución de comandos desde la consola del sistema (\textit{Git from the command line and also from 3rd-party software}) para que las terminales reconozcan las instrucciones nativas de control de versiones.
+\item \textbf{Instalación del editor (Visual Studio Code):} Se debe descargar e instalar el entorno de desarrollo \textit{Visual Studio Code}. Una vez instalado, servirá como el centro de mando para modificar el archivo de configuración \ruta{config/config.json}, gestionar las credenciales y abrir las terminales de comandos. Iniciar sesión en VS Code con la cuenta de GitHub.
 \item \textbf{Creación del repositorio:} Acceder a GitHub y crear un repositorio completamente nuevo y vacío (sin archivo README ni \ruta{.gitignore}).
     \item \textbf{Descarga y subida del código:} Descargar el código fuente original del proyecto en formato comprimido pulsando el botón verde \texttt{\char`\"Code"} y seleccionando \texttt{"Download ZIP"}. Una vez descomprimido en el ordenador, se abre la carpeta en VS Code mediante el menú \texttt{Archivo > Abrir carpeta}.
     \item \textbf{Inicialización y conexión del repositorio propio:} Para desvincular el proyecto de la ruta original y conectar la carpeta local de VS Code con el nuevo repositorio vacío creado en la nube, se debe abrir la terminal y ejecutar la siguiente secuencia de comandos:
     \begin{itemize}
         \item \texttt{git init}: Inicializa un contenedor de Git limpio en la carpeta local.
         \item \texttt{git add .}: Prepara todos los archivos del proyecto para el primer volcado.
-        \item \texttt{git commit -m \char`\"Initial commit"}: Registra este estado inicial de los archivos.
+        \item \texttt{git commit -m \char`\"Initial commit"}: Registra este estado inicial de los archivos. Si aparece un error de autentificación de usuario, hay que ejecutar los siguientes comandos: \texttt{git config -{}-global user.email "you@example.com"} y \texttt{git config -{}-global user.name "Your name"}, con los datos correspondientes.
         \item \texttt{git branch -M main}: Establece la rama principal del proyecto.
         \item \texttt{git remote add origin <URL\_del\_repositorio\_nuevo>}: Enlaza la carpeta local con la dirección web del repositorio personal creado en GitHub (sustituyendo la etiqueta por la URL correspondiente).
-        \item \texttt{git push -u origin main}: Realiza la subida definitiva de todo el código a la nube.
+        \item \texttt{git push -u origin main}: Realiza la subida definitiva de todo el código a la nube. Aquí hay que autorizar el gestor de credenciales de Git, para permitir 
     \end{itemize}
 \end{enumerate}
 
@@ -411,33 +412,38 @@ Para poder gestionar el proyecto, modificar sus parámetros y guardar los cambio
 El programa necesita que la base de datos ya esté creada antes de ponerse a buscar información. Para crearla, hay que entrar en la web de Google Cloud Console, crear un proyecto y montar las tablas utilizando los archivos que vienen dentro de la carpeta \ruta{database/}.
 
 \subsubsection{Crear el proyecto en Google Cloud}
-Una vez creada la cuenta de GC (entrar con el correo de Google), en la barra de arriba, hay que hacer clic en el botón de proyectos y pulsar el botón \texttt{"Proyecto nuevo"}. Se escribe el nombre del proyecto, se le indica que es un proyecto \texttt{"Sin organización"} (para evitar las restricciones de la organización que tiene una política que impide generar claves) y se da a \texttt{"Crear"}. Una vez creado, el proyecto debería estar seleccionado en la barra de arriba.
+Entrar en la página de Google Cloud Console \url{https://console.cloud.google.com/welcome/new} e iniciar sesión con la cuenta de Google que disponga de una cuenta de facturación activa. En la barra de arriba, hay que hacer clic en el botón de \texttt{"Selecciona un proyecto"} y posteriormente, el botón \texttt{"Proyecto nuevo"}. Se escribe el nombre del proyecto (el id que asigna BigQuery a ese proyecto será por lo que habrá que sustituir mi id del proyecto en los create table de schema.sql), se le indica que es un proyecto \texttt{"Sin organización"} (para evitar las restricciones de la organización que tiene una política que impide generar claves) y se da a \texttt{\char`\"Crear"}. Una vez creado, el proyecto debería estar seleccionado en la barra de arriba.
 
 \subsubsection{Crear la estructura de las tablas}
 Ahora que está seleccionado el proyecto, se busca la herramienta \textbf{BigQuery} en el menú de la izquierda o en el buscador de arriba y se selecciona para crear ahí todo el almacén de datos del proyecto:
 \begin{enumerate}
-    \item \textbf{Crear el Dataset:} En el panel izquierdo de BigQuery (En la pestaña de Explorador clásico), hay que hacer clic en los tres puntos verticales que salen al lado del nombre del proyecto y elegimos la opción \texttt{\char`\"Crear conjunto de datos"}. En el formulario que se abre, se le da un nombre al dataset y se crea al hacer clic en el botón azul de abajo. Importante recordar cambiar los nombres que vienen por defecto tanto del proyecto como del dataset en el config.json por los elegidos en este paso.
+    \item \textbf{Crear el Dataset:} En el panel izquierdo de BigQuery (En la pestaña de Explorador clásico), hay que hacer clic en los tres puntos verticales que salen al lado del id del proyecto y se elige la opción \texttt{\char`\"Crear conjunto de datos"}. En el formulario que se abre, se le da un nombre al dataset (ejemplo para que cuadre y no tener que cambiarlo luego en las sentencias al crear las tablas: ds\_turismo\_reviews), en "Ubicación de los datos" hay que seleccionar "europe-southwest1 (Madrid)" y se crea al hacer clic en el botón azul de abajo. Importante recordar cambiar los nombres que vienen por defecto tanto del proyecto como del dataset en el config.json por los elegidos en este paso (el id en el caso del proyecto).
     \item \textbf{Abrir el editor de código:} Una vez dentro del dataset, pulsando el botón con el símbolo \texttt{\char`\"+"} (\texttt{Consulta en SQL}) que hay en la barra de arriba, se abre una consulta en blanco.
-    \item \textbf{Pegar el diseño de las tablas:} Desde el entorno de desarrollo local, se abre el archivo \ruta{database/schema.sql}, se copia la totalidad de su contenido (las sentencias \texttt{CREATE TABLE} de las 6 tablas del sistema) y se pega en el editor de consultas de la web de BigQuery.
-    \item \textbf{Comprobar los nombres:} Importante revisar que la primera línea de cada consulta tenga el mismo nombre que le dimos antes al proyecto y al dataset de BigQuery. El formato debe ser siempre: \texttt{`nombre\_proyecto.nombre\_dataset.tabla`}.
+    \item \textbf{Pegar el diseño de las tablas:} Se abre el archivo \ruta{database/schema.sql} en VS Code, se copia la totalidad de su contenido (las sentencias \texttt{CREATE TABLE} de las 6 tablas del sistema) y se pega en el editor de consultas de la web de BigQuery.
+    \item \textbf{Modificar consulta:} Importante sustituir todas las referencias al identificador del proyecto (tfg-boletin-turismo-burgos) por el ID del proyecto creado. Este identificador aparece en todas las sentencias CREATE TABLE, CREATE VIEW y en las referencias a tablas y vistas utilizadas en las consultas FROM y JOIN. En el caso de que se haya puesto un nombre diferente al dataset, también habrá que sustituirlo en todas las referencias. El formato debe ser siempre: \texttt{`id\_proyecto.nombre\_dataset.tabla`}.
     \item \textbf{Ejecutar:} Le damos al botón \texttt{\char`\"Ejecutar"}. Abajo mostrará un mensaje verde confirmando que todo está correcto y, en el menú de la izquierda, aparecerán las seis tablas creadas vacías.
 \end{enumerate}
 
 \subsubsection{Subir los datos iniciales (archivos CSV)}
 Para que el buscador sepa qué municipios de Burgos tiene que rastrear, qué códigos postales mirar y cómo clasificar las categorías de Google Maps, hay que rellenar las tablas de configuración con los archivos CSV de la carpeta \ruta{database/}.
 
-Para las tablas \texttt{municipalities} y \texttt{categories}, en el menú izquierdo de BigQuery, hacemos clic sobre el nombre que le pusimos al dataset y, en la barra de herramientas de arriba, le damos al botón \texttt{\char`\"Crear tabla"} y rellenamos el formulario con estas opciones:
+Para la tabla \texttt{categories}, en el menú izquierdo de BigQuery, hacemos clic sobre el nombre que le pusimos al dataset y, en la barra de herramientas de arriba, le damos al botón \texttt{\char`\"Crear tabla"} y rellenamos el formulario con estas opciones:
 \begin{itemize}
     \item \textbf{Crear tabla desde:} Seleccionamos la opción \texttt{"Subir"}.
-    \item \textbf{Seleccionar archivo:} Buscamos en el equipo el archivo que corresponda (por ejemplo, \ruta{database/municipalities.csv} o \ruta{database/categories.csv}).
+    \item \textbf{Seleccionar archivo:} Buscamos en el equipo el archivo que corresponda (por ejemplo, \ruta{database/categories.csv}).
     \item \textbf{Formato de archivo:} Seleccionamos \texttt{\char`\"CSV"}.
-    \item \textbf{Nombre de la tabla:} Escribimos el nombre exacto de la tabla donde va ese archivo (\texttt{municipalities} o \texttt{categories}).
+    \item \textbf{Nombre de la tabla:} Escribimos el nombre exacto de la tabla donde va ese archivo \texttt{categories}).
     \item \textbf{Esquema:} Marcamos la casilla de \texttt{"Detección automática"}.
     \item \textbf{Preferencias avanzadas:} En \textbf{Preferencia de escritura} seleccionamos \texttt{\char`\"Agrega a la tabla"} y en \textbf{Filas del encabezado que se omitirán} hay que escribir el número \texttt{1} (esto sirve para que el programa ignore la primera línea del archivo, que es donde están los títulos de las columnas).
     \item Por último, pulsamos \texttt{\char`\"Crear tabla"}.
 \end{itemize}
 
-Para la tabla de códigos postales (\texttt{municipality\_postal\_codes}) se deben seguir exactamente los mismos pasos, excepto en el apartado de \textbf{Esquema}. Para esta tabla hay que marcar la casilla de \texttt{\char`\"Editar como texto"} y pegar exactamente lo siguiente: \texttt{id\_municipality:INTEGER,municipality\_\-name:STRING,postal\_code:STRING}. Esto es estrictamente necesario porque BigQuery, al usar la detección automática, interpreta los códigos postales del archivo CSV como valores numéricos (\textit{Integer}). Al intentar subir estos datos como números a una tabla cuyo esquema ya ha sido definido previamente en el \ruta{schema.sql} como una cadena de texto (\textit{String}), la plataforma lanza un error de incompatibilidad de tipos y bloquea la creación de la tabla. Forzando el esquema manual se soluciona este conflicto y se asegura que se respeten los formatos.
+Para la tabla de municipios (\texttt{municipalities}) y la de códigos postales (\texttt{municipality\_postal\_codes}) se deben seguir exactamente los mismos pasos, excepto en el apartado de \textbf{Esquema}. Para estas tablas hay que marcar la casilla de \texttt{\char`\"Editar como texto"} (desmarcando "Detección automática") y pegar exactamente lo siguiente (quitando el guión "-" que separa last\_review\_extraction): 
+\begin{itemize}
+    \item Para la tabla municipalities: \texttt{id\_municipality:INTEGER,name:STRING, population:INTEGER,last\_poi\_update:TIMESTAMP,last\_review\_\-extraction:TIMESTAMP}
+    \item Para la tabla municipality\_postal\_codes: \texttt{id\_municipality:INTEGER, municipality\_name:STRING,postal\_code:STRING}.
+\end{itemize}
+Esto es estrictamente necesario porque BigQuery, al usar la detección automática, interpreta los códigos postales del archivo CSV como valores numéricos (\textit{INTEGER}) y los TIMESTAMP de municipalities como STRING. Al intentar subir estos datos como números a una tabla cuyo esquema ya ha sido definido previamente en el \ruta{schema.sql} como una cadena de texto (\textit{STRING}), la plataforma lanza un error de incompatibilidad de tipos y bloquea la creación de la tabla. Forzando el esquema manual se soluciona este conflicto y se asegura que se respeten los formatos.
 
 Al terminar estas tres subidas, la base de datos estará lista, con toda la información guardada y preparada para recibir los datos del scraper.
 
@@ -451,7 +457,7 @@ Para permitir que el script de Python se conecte a BigQuery y tenga permisos par
     \item Dentro de la consola web de Google Cloud, abrir el menú de navegación de la izquierda y acceder al apartado \texttt{IAM y administración > Cuentas de servicio}.
     \item En la barra superior, hacer clic en el botón \texttt{\char`\"Crear cuenta de servicio"}.
     \item Asignar un nombre a la cuenta y pulsar \texttt{\char`\"Crear y continuar"}.
-    \item En el apartado de asignar roles, seleccionar en el desplegable el rol de \texttt{Editor de datos BigQuery} para otorgar los permisos de escritura necesarios, y hacer clic en \texttt{"Listo"}.
+    \item En el apartado de asignar roles, para otorgar los permisos de escritura necesarios, hay que seleccionar en el desplegable el rol de \texttt{Editor de datos BigQuery} y agregar un nuevo rol que es el de \texttt{Usuario de trabajo de BigQuery} que aparece dentro de la pestaña general \texttt{BigQuery}. Además, es necesario agregar un nuevo rol y hacer clic en \texttt{"Listo"}.
     \item En la lista de cuentas de servicio que aparece en pantalla, hacer clic sobre la cuenta recién creada y acceder a la pestaña superior denominada \texttt{\char`\"Claves"}.
     \item Pulsar en el desplegable \texttt{\char`\"Agregar clave > Crear clave nueva"}, seleccionar el formato \textbf{JSON} y hacer clic en \texttt{\char`\"Crear"}.
     \item El navegador descargará automáticamente un archivo de texto con la clave privada. Se debe mover este archivo a la raíz del proyecto dentro de VS Code y renombrarse como \ruta{key.json}.
@@ -465,7 +471,7 @@ Para comunicar el script con la API que ejecuta los scrapers en la nube, es nece
     \item En las pestañas superiores, seleccionar la opción \texttt{\char`\"API \& Integrations"}.
     \item Copiar la cadena de texto que aparece en el campo \texttt{"Personal API tokens"}.
     \item En VS Code abrir el archivo \texttt{.env} y escribir la variable pegando el token justo después del signo igual (sin espacios), con el siguiente formato: \\
-    \texttt{APIFY\_TOKEN=token\_copiado}
+    \texttt{APIFY\_TOKEN=token\_copiado}. Guardar los cambios.
 \end{enumerate}
 
 \begin{center}
@@ -488,7 +494,7 @@ Dado que los archivos de credenciales locales están bloqueados por seguridad y 
     \item Pulsar de nuevo el botón \texttt{"New repository secret"} para dar de alta la segunda clave:
     \begin{itemize}
         \item \textbf{Name:} Escribir exactamente el nombre de la variable: \texttt{GCP\_SA\_KEY}.
-        \item \textbf{Value:} Abrir el archivo \ruta{key.json} en el ordenador local, seleccionar y copiar todo el bloque de texto que contiene el archivo y pegarlo entero en este recuadro.
+        \item \textbf{Value:} Ejecutar en la terminal de VS Code el siguiente comando: \texttt{[Convert]::ToBase64String([System.IO.File]::ReadAllBy\-tes("key.json"))} (quitar el guión que parte Bytes para el salto de línea) y copiar todo el bloque de texto que aparece en la terminal y pegarlo entero en este recuadro.
         \item Hacer clic de nuevo en \texttt{\char`\"Add secret"}.
     \end{itemize}
 \end{enumerate}
@@ -506,7 +512,7 @@ Esta opción es la adecuada si se desea realizar modificaciones en el código fu
     \item \textbf{Instalación de Python:} Descargar e instalar \textbf{Python 3.13} desde su página web oficial \url{https://www.python.org/downloads/}. Durante el proceso de instalación en Windows, es indispensable marcar la casilla de verificación \texttt{\char`\"Add python.exe to PATH"} para que el sistema operativo reconozca los comandos desde cualquier terminal.
     \item \textbf{Abrir la consola:} Acceder al menú superior de VS Code y seleccionar la opción \texttt{Terminal > New Terminal}.
     \item \textbf{Instalar las librerías del proyecto:} Ejecutar en la terminal el comando de instalación de dependencias en la raíz del proyecto: \\
-    \texttt{pip install -r requirements.txt} \\
+    \texttt{python -m pip install -r requirements.txt} \\
     El gestor de paquetes leerá el archivo e instalará en el sistema todas las librerías necesarias con las versiones exactas con las que se ha diseñado el proyecto.
     \item \textbf{Lanzamiento :} El script se inicia ejecutando directamente en la consola el comando: \\ 
     \texttt{python main\_scraper\_pipeline.py}, estando dentro de la carpeta \ruta{/src}.
@@ -516,13 +522,13 @@ Esta opción es la adecuada si se desea realizar modificaciones en el código fu
 Esta es la opción recomendada para asegurar que el pipeline funcione de forma idéntica en cualquier máquina o servidor de producción, ya que empaqueta el código, el sistema operativo y las librerías en un contenedor totalmente aislado, evitando tener que instalar dependencias a mano en el ordenador.
 
 \begin{enumerate}
-    \item \textbf{Requisitos de almacenamiento y arranque:} Se debe descargar e instalar la aplicación \textit{Docker Desktop} desde su página oficial \url{https://www.docker.com/products/docker-desktop/}. Una vez instalada, se debe arrancar y mantener encendida la aplicación en el ordenador. Es importante destacar que el sistema operativo anfitrión debe disponer de al menos \textbf{15 GB de espacio libre en el disco duro} antes de construir el contenedor. Este espacio es necesario para dar cabida a la máquina virtual de Linux (WSL2), la imagen base de Python 3.13 y el procesado de las librerías de análisis de texto.
+    \item \textbf{Requisitos de almacenamiento y arranque:} Se debe descargar e instalar la aplicación \textit{Docker Desktop} desde su página oficial \url{https://www.docker.com/products/docker-desktop/}. Una vez instalada, se necesita tener instalado en Windows el subsistema de Windows para Linux para tener la máquina virtual en Docker (Ejecutar el comando \texttt{wsl.exe -{}-install} en la PowerShell). Posteriormente, se debe arrancar y mantener encendida la aplicación en el ordenador. Es importante destacar que el sistema operativo anfitrión debe disponer de al menos \textbf{15 GB de espacio libre en el disco duro} antes de construir el contenedor. Este espacio es necesario para dar cabida a la máquina virtual de Linux (WSL2), la imagen base de Python 3.13 y el procesado de las librerías de análisis de texto.
     
     \item \textbf{Construir y lanzar el entorno (Docker Compose):} Con la aplicación de Docker abierta, se accede a la terminal de VS Code y se ejecuta el comando en la raíz del proyecto: \\
-    \texttt{docker-compose up --build} \\
+    \texttt{docker-compose up -{}-build} \\
     Este comando automatiza todo el proceso de golpe: lee el archivo de configuración \ruta{docker-compose.yml}, descarga la versión de Python 3.13, instala las librerías del \ruta{requirements.txt}, inyecta el token  del archivo \ruta{.env} y arranca el script principal automáticamente en unos minutos.
     
-    \item \textbf{Ejecuciones posteriores:} Una vez realizado el proceso anterior por primera vez, el entorno quedará guardado de forma permanente dentro de la interfaz de \textit{Docker Desktop}. Para futuras ejecuciones, (siempre y cuando no se haya modificado el código fuente del programa), no será necesario volver a usar la terminal, bastará con abrir la aplicación visual de Docker y hacer clic en el botón de reproducción (\textit{Start}) para repetir el proceso con la imagen ya compilada. En caso de realizar cualquier modificación en el proyecto, será necesario volver a lanzar el comando \texttt{docker-compose up --build} desde la terminal para actualizar el contenedor con los nuevos cambios.
+    \item \textbf{Ejecuciones posteriores:} Una vez realizado el proceso anterior por primera vez, el entorno quedará guardado de forma permanente dentro de la interfaz de \textit{Docker Desktop}. Para futuras ejecuciones, (siempre y cuando no se haya modificado el código fuente del programa), no será necesario volver a usar la terminal, bastará con abrir la aplicación visual de Docker y hacer clic en el botón de reproducción (\textit{Start}) para repetir el proceso con la imagen ya compilada. En caso de realizar cualquier modificación en el proyecto, será necesario volver a lanzar el comando \texttt{docker-compose up -{}-build} desde la terminal para actualizar el contenedor con los nuevos cambios.
     
     \item \textbf{Monitorización de logs:} Para monitorizar la ejecución en tiempo real, el usuario puede hacer clic sobre el contenedor en la interfaz de \textit{Docker Desktop}, lo cual abrirá una consola integrada de \textit{Logs} donde se vuelca todo el histórico de la ejecución. Igualmente, gracias a la configuración del \ruta{docker-compose.yml}, el archivo .log se almacenará en la carpeta de /logs del repositorio. 
     
@@ -542,10 +548,6 @@ Permite realizar ejecuciones en cualquier momento de forma manual en la nube:
 
 \paragraph{Opción B: Ejecución programada automática en la nube}
 Es el estado de operación definitivo del sistema para trabajar de forma autónoma a largo plazo. Gracias a la directiva \texttt{schedule} integrada en el archivo YAML de configuración del workflow de GitHub Actions, la plataforma evalúa una expresión Cron temporal de forma constante. Al cumplirse el intervalo temporal configurado (por ejemplo, cada mes o cada semana), los servidores de GitHub despiertan el contenedor automáticamente, ejecutan el rastreo y actualizan las tablas correspondientes sin intervención humana.
-
-\subsubsection{Visualización en Looker Studio}
-Una de las grandes ventajas de la arquitectura del proyecto es que el cuadro de mando de Looker Studio no requiere ningún tipo de ejecución, actualización manual o despliegue de código. Al estar conectado de forma directa y nativa al almacén de datos de Google BigQuery, cualquier inserción, modificación o actualización de reseñas realizada por el scraper se refleja de forma completamente dinámica e instantánea en los gráficos del informe.
-
 
 \section{Pruebas del sistema}
 El proyecto no cuenta con tests unitarios automatizados, pero su diseño permite realizar una amplia variedad de pruebas reales modificando los parámetros del archivo de configuración para obtener y comprobar resultados de elementos específicos.
