@@ -1,0 +1,75 @@
+\apendice{Especificación de diseño}
+
+\section{Introducción}
+Este anexo describe cómo se ha estructurado técnicamente el sistema para cumplir con los requisitos funcionales detallados en los apartados anteriores. Define el plano de diseño del proyecto a través de tres pilares fundamentales: cómo se organizan los datos en la nube (diseño de datos), cómo se comunican las distintas herramientas y plataformas que forman el sistema (diseño arquitectónico) y cuál es el orden lógico exacto que siguen los procesos del programa durante una ejecución (diseño procedimental).
+
+\section{Diseño de datos}
+Para el almacenamiento permanente de la información, se ha seleccionado Google BigQuery, un almacén de datos en la nube que permite gestionar grandes volúmenes de registros y realizar consultas optimizadas de forma rápida. El modelo sigue una estructura relacional compuesta por seis tablas principales interconectadas entre sí y dos vistas SQL optimizadas para la herramienta de visualización.
+
+A continuación, se describen los elementos que componen el modelo de datos:
+\begin{itemize}
+	\tightlist
+	\item \textbf{municipalities:} Guarda la lista oficial de localidades de la provincia de Burgos, registrando su identificador del INE, su nombre, el número de habitantes y el control de fecha de las últimas actualizaciones de POIs y reseñas.
+	\item \textbf{municipality\_postal\_codes:} Relaciona cada municipio mediante su identificador único con sus códigos postales oficiales posibles que pueden incluir puntos de interés de este municipio, permitiendo filtrar y descartar los POIs extraídos que pertenezcan a otros municipios.
+	\item \textbf{categories:} Almacena la taxonomía oficial de Google Maps organizada en una jerarquía interna de cuatro niveles más la propia categoría oficial de Google Maps e incluye el nivel de segmentación demográfica.
+	\item \textbf{pois:} Es la tabla central de puntos de interés. Contiene los lugares localizados con sus datos comerciales, estado de apertura, accesibilidad, coordenadas, el desglose de volumen de reseñas por cada estrella (de 1 a 5), un campo de tipo geométrico para mapas y el índice TORI calculado.
+	\item \textbf{reviews:} Almacena los comentarios de los usuarios, guardando tanto el texto original como el traducido, el idioma detectado, el género estimado del autor mediante su nombre y los cálculos de sentimiento.
+	\item \textbf{scraper\_control:} Funciona como una tabla de auditoría interna que apunta la fecha y hora exactas de la última extracción completada con éxito para cada combinación de municipio y categoría, permitiendo saber y filtrar cuáles de esas combinaciones necesitan ser procesadas y cuáles no al ejecutar la aplicación.
+\end{itemize}
+
+Para facilitar el consumo de estos datos desde el cuadro de mando de Looker Studio sin penalizar el rendimiento ni generar costes innecesarios por consultas repetitivas, se han diseñado dos vistas SQL específicas:
+\begin{itemize}
+	\tightlist
+	\item \textbf{view\_pois:} Unifica la información de los POIs realizando cruces lógicos para adjuntar la población del municipio y los cuatro niveles de su categoría correspondiente.
+	\item \textbf{view\_reviews:} Consolida el histórico de reseñas combinando cada una con los datos del POI al que pertenece y la jerarquía taxonómica de su categoría.
+\end{itemize}
+
+\subsection{Relaciones del modelo de datos}
+Las conexiones y dependencias lógicas entre las tablas de la base de datos se estructuran siguiendo los símbolos de obligatoriedad y cardinalidad definidos en el diagrama:
+
+\begin{itemize}
+	\tightlist
+	\item \textbf{municipalities y municipality\_postal\_codes (1 mandatory to Many mandatory):} En la realidad geográfica un código postal puede compartirse, pero en el modelo físico se resuelve con la tabla intermedia \texttt{municipality\_postal\_codes}. Cada fila vincula un único municipio obligatorio con un código postal, y todo municipio de la tabla maestra debe tener al menos un código postal asignado.
+	\item \textbf{municipalities y pois (1 mandatory to Many optional):} Cada municipio de la tabla principal puede albergar varios puntos de interés en la tabla \texttt{pois}, quedando cada sitio vinculado de forma obligatoria a un único municipio a través del campo \texttt{id\_municipality}. Es una relación opcional en el extremo del POI porque un municipio de la lista podría no tener ningún sitio extraído.
+	\item \textbf{categories y pois (1 mandatory to Many optional):} Una categoría de la taxonomía sirve para clasificar múltiples lugares comerciales o turísticos, pero cada registro de la tabla \texttt{pois} pertenece obligatoriamente a una sola categoría de búsqueda mediante su \texttt{id\_category}.
+	\item \textbf{pois y reviews (1 mandatory to Many optional):} Un punto de interés puede acumular varias reseñas o no tener ninguna en la tabla \texttt{reviews}. Cada reseña individual de la base de datos se vincula obligatoriamente a un único POI mediante su identificador de Google (\texttt{poi\_id}).
+	\item \textbf{scraper\_control (Tabla independiente):} La tabla \texttt{scraper\_control} se ha diseñado como un componente aislado del resto de relaciones numéricas. Guarda las combinaciones de municipios y categorías directamente como texto plano (\texttt{STRING}) en lugar de usar claves foráneas. Esto se hace así porque el scraper en Python trabaja construyendo cadenas de texto para las búsquedas en la API de Google Maps. Guardar los registros en texto evita tener que hacer cruces de tablas (\textit{JOINs}) costosos dentro de los bucles del programa cada vez que se quiere comprobar una fecha, mejorando la velocidad de ejecución y adaptándose al diseño desnormalizado que utiliza BigQuery.
+\end{itemize}
+
+\imagen{Diagrama_entidad_relacion_TFG.jpg}{Diagrama Entidad-Relación del modelo de datos en BigQuery.}
+
+
+\section{Diseño arquitectónico}
+La arquitectura del sistema está organizada en cinco etapas o bloques principales que se conectan entre sí para formar el pipeline de datos, tal y como se detalla a continuación:
+
+\begin{itemize}
+	\item \textbf{Desarrollo local:} Toda la programación del código se realiza en el entorno VS Code utilizando Python 3.13. Para evitar fallos de configuración y asegurar que el programa funcione igual en cualquier máquina, se incluye Docker para aislar el entorno de ejecución. Una vez que el código está listo, se usa el comando \texttt{git push} para subir los cambios al repositorio de GitHub.
+	\item \textbf{Automatización y control (GitHub):} El repositorio del proyecto se aloja en GitHub. Desde aquí se utiliza GitHub Actions para programar y lanzar las ejecuciones automáticas del scraper a través de temporizadores o de forma manual. Además, se configuran las claves privadas dentro de GitHub Secrets usando las variables APIFY\_TOKEN y GCP\_SA\_KEY para proteger los accesos.
+    \item \textbf{Extracción de datos (Apify):} Esta etapa se encarga de conectar el script de Python con la API de Apify para lanzar los actores encargados de extraer la información de los puntos de interés y las reseñas directamente desde Google Maps. Esta comunicación se realiza en dos pasos: primero, el pipeline lanza una \textbf{Consulta API (Python)} enviando los parámetros y filtros de búsqueda; segundo, el servidor de Apify procesa el rastreo en Google Maps y devuelve una respuesta con el conjunto de datos en un formato JSON con toda la información de los POIs y reseñas.
+	\item \textbf{Almacenamiento (Google BigQuery):} Toda la información ya limpia y procesada se envía al almacén de datos de Google Cloud. Los datos se organizan en las seis tablas definitivas del sistema y se preparan las vistas SQL necesarias para la visualización.
+    \item \textbf{Visualización (Looker Studio):} Es la capa final del proyecto, que consiste en un panel interactivo conectado directamente a la base de datos de BigQuery. Este cuadro de mando lanza consultas automáticas a las vistas de BigQuery cada vez que el usuario interactúa con la web, pintando los mapas y las gráficas estadísticas del Boletín de Turismo en tiempo real.
+\end{itemize}
+
+\imagen{Diagrama_arquitectura_TFG.jpg}{Diagrama de arquitectura del proyecto.}
+
+
+\section{Diseño procedimental}
+En este apartado se detalla el diseño procedimental del sistema, describiendo el flujo de ejecución cronológico y la interacción síncrona entre los módulos de software locales y los servicios en la nube (la API de Apify y Google BigQuery). Con el objetivo de garantizar la legibilidad de la arquitectura y debido a la densidad analítica del proceso incremental, el flujo se ha fragmentado en dos diagramas de secuencia complementarios: la Fase A, orientada al descubrimiento de POIs y control geográfico, y la Fase B, enfocada en la descarga masiva de reseñas, el procesamiento lingüístico de los datos y el cálculo del TORI.
+
+El flujo completo del programa se organiza de manera secuencial siguiendo tres fases operativas principales distribuidas en dos bloques de secuencia lógicos:
+
+\begin{itemize}
+	\item \textbf{Fase 1: Inicialización del sistema:} Al arrancar la aplicación, el script principal \ruta{main\_scraper\_pipeline.py} invoca al componente \ruta{config\_loader.py} para leer y cargar en memoria el archivo \ruta{config.json} con los parámetros de la ejecución. Inmediatamente después, activa el subsistema de registros a través de \ruta{logger.py}. Para iniciar el flujo, llama al módulo \ruta{bigquery\_loader.py} para realizar una consulta inicial a Google BigQuery, descargando el mapa de categorías oficiales y la lista de municipios que tienen tareas de actualización pendientes según el margen de días configurado.
+	\item \textbf{Fase 2: Descubrimiento de POIs (Fase A - POIs):} El pipeline inicia un bucle para recorrer uno a uno los municipios pendientes. En primer lugar, solicita a \ruta{bigquery\_loader.py} los códigos postales autorizados de esa localidad para usarlos como filtro geográfico de seguridad. Si el término municipal requiere actualización, se calcula el nivel de búsqueda según la población y se recorren sus categorías invocando a la función \texttt{fetch\_pois\_from\_apify} del módulo \ruta{apify\_extractor.py} para descargar los POIs de Google Maps. El script principal procesa los resultados devueltos y envía la lista a \ruta{bigquery\_loader.py}. Este módulo sube los datos a una tabla temporal de staging y ejecuta una sentencia SQL \texttt{MERGE} en el servidor para actualizar la tabla definitiva de POIs, registrando el control de la categoría y actualizando la fecha de control del municipio al haber sido ya procesados.
+\end{itemize}
+
+\imagen{Diagrama_secuencia_TFG_FaseA.jpg}{Diagrama de secuencia: Inicialización y descubrimiento de puntos de interés (Fase A).}
+
+\begin{itemize}
+	\item \textbf{Fase 3: Extracción y transformación analítica (Fase B - Reseñas):} Para cada punto de interés válido del municipio seleccionado, el archivo principal solicita a la base de datos la lista de POIs pendientes y, para cada uno, el identificador de la última reseña almacenada en ejecuciones previas para poder parar el procesamiento de reseñas cuando se encuentre una que ya está extraída (se extraen en orden de antigüedad). A continuación, llama al método \texttt{fetch\_reviews\_from\_apify} para descargar las reseñas. Cada nueva reseña se envía al método \texttt{clean\_translate\_review} de \ruta{review\_transformer.py} junto con su \texttt{poi\_id} para descartar textos cortos, traducir reseñas de otros idiomas al castellano (o el idioma que se haya pedido en la configuración) de forma automatizada, estimar el género del autor por su nombre y calcular la nota de sentimiento. Finalmente, se invoca de nuevo al cargador para almacenar las reseñas con un \texttt{MERGE}, lanzar la consulta que recalcula el índice de reputación TORI del POI y guardar las marcas de control temporales tanto del POI como del municipio completo.
+\end{itemize}
+
+\imagen{Diagrama_secuencia_TFG_FaseB.jpg}{Diagrama de secuencia: Extracción de reseñas, procesamiento NLP y persistencia (Fase B).}
+
+\imagen{Diagrama_secuencia_TFG_Completo.jpg}{Diagrama de secuencia completo.}
+
