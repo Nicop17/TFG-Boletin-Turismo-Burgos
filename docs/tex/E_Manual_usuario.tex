@@ -1,0 +1,126 @@
+\apendice{Documentación de usuario}
+
+\section{Introducción}
+
+El objetivo de este anexo es proporcionar la documentación de usuario del cuadro de mando desarrollado en Looker Studio \cite{looker_studio_dashboard}, con el fin de describir su funcionamiento y facilitar la interpretación de la información representada en las diferentes pantallas que lo componen.
+
+El cuadro de mando constituye la interfaz de visualización del sistema desarrollado, permitiendo explorar de forma gráfica e interactiva la información turística almacenada en BigQuery. A través de diferentes gráficos, mapas, tablas e indicadores, el usuario puede analizar la distribución de los puntos de interés (POIs), las características de las reseñas publicadas por los visitantes y el índice de reputación online (TORI), entre muchos otros aspectos de interés para el análisis turístico de la provincia de Burgos.
+
+\section{Requisitos de usuarios}
+
+El cuadro de mando desarrollado en Looker Studio es una aplicación web, por lo que no requiere la instalación de ningún software específico para su utilización. Únicamente es necesario disponer de un dispositivo con acceso a Internet y un navegador web actualizado para acceder al informe e interactuar con las diferentes visualizaciones que lo componen.
+
+\section{Instalación}
+
+Al tratarse de una aplicación web, el cuadro de mando desarrollado en Looker Studio no requiere ningún proceso de instalación ni la descarga de software adicional. El acceso al informe se realiza directamente a través del enlace web proporcionado por el autor.
+
+\section{Manual de usuario}
+
+El cuadro de mando está organizado en diferentes pantallas temáticas, cada una de ellas orientada al análisis de un conjunto específico de indicadores relacionados con los puntos de interés, las reseñas de los usuarios y el índice de reputación online (TORI).
+
+La interacción con el cuadro de mando se realiza de forma completamente visual. Los gráficos permiten consultar información detallada al situar el cursor sobre sus diferentes elementos y, en aquellos casos en los que es posible, seleccionar categorías, municipios u otros valores para filtrar el resto de visualizaciones de la misma pantalla. Además, el informe incorpora controles de filtrado que permiten restringir el análisis a uno o varios municipios, años o categorías actualizando automáticamente los gráficos afectados.
+
+En los siguientes apartados se presenta una descripción individual de cada una de las pantallas del cuadro de mando, detallando los elementos que las integran, la información que representan y las posibilidades de análisis que proporcionan.
+
+\subsection{E.4.1 Dashboard Overview}
+
+La primera pantalla, llamada \textit{Dashboard Overview}, constituye la vista principal del cuadro de mando y ofrece una visión global de la información turística más relevante almacenada en la base de datos. Su objetivo es proporcionar un resumen de los principales indicadores del sistema y facilitar una primera exploración de los POIs antes de realizar análisis más específicos en el resto de las pantallas.
+
+En la parte superior se muestran cuatro indicadores resumen que permiten conocer el estado general de la base de datos. Estos indicadores representan el valor medio del índice de reputación online (TORI), el número total de puntos de interés registrados, el número de reseñas disponibles y la calificación media otorgada por los usuarios. Todos ellos se actualizan automáticamente cuando se aplica cualquier filtro sobre el informe, mostrando únicamente la información correspondiente al subconjunto de datos seleccionado.
+
+La parte central de la pantalla está ocupada por una tabla interactiva que reúne la información más representativa de cada punto de interés. Para cada registro se muestran el municipio al que pertenece, la categoría y sus diferentes niveles de clasificación, el nombre del POI, el volumen de reseñas y el valor del índice TORI.
+
+Esta tabla constituye el principal punto de consulta del cuadro de mando, ya que permite realizar comparaciones directas entre municipios, categorías y puntos de interés. Por ejemplo, el usuario puede identificar qué establecimientos presentan una mayor reputación online dentro de una misma categoría, localizar aquellos con un elevado volumen de reseñas o detectar diferencias entre municipios en función de la clasificación de sus recursos turísticos.
+
+La pantalla incorpora, además, cuatro filtros correspondientes al municipio y los distintos niveles de categorías. Estos controles permiten restringir el análisis a un subconjunto concreto de la información, actualizando de forma automática tanto los indicadores resumen como la tabla. Gracias a ello, el usuario puede realizar análisis específicos sobre un municipio determinado o comparar el comportamiento de diferentes categorías de puntos de interés.
+
+\imagen{Pantalla1_looker.jpg}{Pantalla de vista general (Dashboard Overview).}
+
+
+\subsection{E.4.2 Municipalities \& Categories}
+La segunda pantalla, denominada \textit{Municipalities \& Categories}, está orientada al análisis de la distribución de los puntos de interés en función de los municipios y las categorías a las que pertenecen. Su finalidad es proporcionar una visión sobre cómo se reparte la oferta turística de la provincia y facilitar la comparación entre las diferentes zonas geográficas.
+
+Esta pantalla, al igual que el resto, incorpora un filtro de municipios que permite restringir el análisis de la información a uno o varios municipios concretos, actualizando automáticamente todas las visualizaciones.
+
+El gráfico \textit{Category Distribution by Municipality} muestra la distribución de los puntos de interés entre las distintas categorías disponibles, permitiendo identificar cuáles tienen una mayor representación dentro del conjunto de datos o dentro de los municipios seleccionados.
+
+Por otra parte, el gráfico \textit{Nº of POIs by Municipality} representa el número de lugares registrados en cada municipio, facilitando la identificación de aquellos que concentran una mayor oferta turística.
+
+Finalmente, el gráfico \textit{Municipalities Contribution by Category} permite analizar cómo contribuye cada municipio al total de los POIs de cada categoría. Esta visualización resulta especialmente útil para comparar el peso relativo de los municipios dentro de cada categoría y detectar aquellas especializaciones o diferencias existentes entre ellos.
+
+\imagen{Pantalla2_looker.jpg}{Pantalla de análisis de Municipios y Categorías.}
+
+\subsection{E.4.3 TORI I}
+La tercera pantalla, nombrada \textit{TORI I}, está orientada al análisis del índice de reputación online (TORI) desde diferentes perspectivas, permitiendo comparar la valoración de los distintos POIs de la provincia. Además del filtro de municipios, la pantalla incluye dos indicadores resumen con el número de lugares analizados y el valor medio del índice TORI para la selección realizada.
+
+Los gráficos \textit{Average TORI Score by Category} y \textit{Top 10 Municipalities by Average TORI Score} ofrecen una primera visión comparativa del índice TORI, mostrando qué categorías presentan una mejor reputación media y cuáles son los municipios con mayor valoración. De este modo, el usuario puede identificar tanto los tipos de recursos turísticos mejor valorados como las localidades que destacan por la satisfacción reflejada en las reseñas.
+
+Por otro lado, \textit{TORI Score by Review Volume} permite analizar la relación entre el volumen de reseñas y el índice TORI de cada POI. Gracias a esta visualización es posible detectar lugares con una elevada reputación pese a contar con un número reducido de opiniones, así como establecimientos muy populares cuya valoración difiere del comportamiento general.
+
+Finalmente, \textit{TORI Score Distribution} complementa este análisis mostrando cómo se distribuyen los valores del índice TORI entre el conjunto de los POIs. Esto permite conocer cuáles son los rangos de puntuación más habituales y valorar si la reputación online se concentra en niveles altos, medios o bajos.
+
+\imagen{Pantalla3_looker.jpg}{Primera pantalla del análisis del índice TORI.}
+
+\subsection{E.4.4 TORI II}
+La cuarta pantalla, denominada \textit{TORI II}, complementa el análisis del índice de reputación online (TORI) estudiando su relación con diferentes variables asociadas tanto a los municipios como a los propios POIs. Además del filtro de municipios, la pantalla incorpora dos indicadores resumen con el número de lugares analizados y el valor medio del índice TORI.
+
+El gráfico \textit{Average TORI Score vs Nº of POIs} permite comparar la reputación media de los municipios en función del número de POIs registrados. Esta visualización facilita la identificación de municipios que, independientemente de su tamaño (el cual varía en función del número de población de cada municipio) o de la cantidad de recursos turísticos disponibles, destacan por presentar una reputación online especialmente elevada.
+
+Por su parte, \textit{POI Rating vs TORI Score} analiza la relación entre la valoración media otorgada por los usuarios y el índice TORI de cada POI. Gracias a esta comparación, el usuario puede comprobar si ambas métricas mantienen un comportamiento similar o identificar aquellos lugares cuya reputación online difiere de la valoración media recibida.
+
+Finalmente, \textit{Images vs TORI Score} muestra la relación existente entre el número de imágenes asociadas a cada POI y su índice TORI. Este gráfico permite explorar si los lugares con una mayor cantidad de contenido visual tienden a presentar una mejor reputación online o si ambas variables no muestran una relación significativa.
+
+\imagen{Pantalla4_looker.jpg}{Segunda pantalla del análisis del índice TORI.}
+
+\subsection{E.4.5 Geographical Analysis}
+La quinta pantalla, llamada \textit{Geographical Analysis}, permite analizar la distribución espacial de los POIs de la provincia, facilitando la identificación de las zonas con mayor concentración de recursos turísticos y de aquellos lugares que generan una mayor interacción por parte de los usuarios. Para ello, incorpora filtros de municipios y categorías que permiten centrar el análisis en un ámbito geográfico o temático concreto.
+
+Los gráficos \textit{POI Density Heat Map} y \textit{Top 10 Municipalities by Number of POIs} ofrecen una visión complementaria de la distribución de los recursos turísticos. Mientras que el mapa de calor permite localizar de forma visual las áreas con mayor concentración de POIs, el gráfico de barras facilita la comparación entre los municipios con mayor número de lugares registrados, permitiendo identificar cuáles concentran la mayor parte de la oferta turística de la provincia.
+
+Por otro lado, \textit{POI Location} y \textit{Top 10 Most Reviewed POIs} centran el análisis en los propios puntos de interés. El mapa de burbujas permite conocer la localización geográfica de cada POI, visualizar su nivel de actividad mediante el volumen de reseñas y obtener una primera aproximación a su reputación online. A su vez, esta información se complementa con el ranking de los lugares que acumulan un mayor número de reseñas, facilitando la identificación de los establecimientos con mayor visibilidad e interacción por parte de los usuarios.
+
+\imagen{Pantalla5_looker.jpg}{Pantalla de análisis geográfico y espacial.}
+
+\subsection{E.4.6 POIs Data}
+La sexta pantalla, que recibe el nombre de \textit{POIs Data}, está dedicada al análisis de las características generales de los POIs registrados en la base de datos. Además del filtro de municipios, incorpora un indicador con el número total de lugares incluidos en la selección realizada.
+
+El gráfico \textit{POI Distribution by Level} permite explorar la distribución de los POIs según los distintos niveles de la clasificación utilizada en el proyecto. Mediante la navegación entre niveles a través de unas flechas que aparecen en la parte superior del gráfico, el usuario puede analizar la composición de la oferta turística desde una visión general (ver Figura~\ref{fig:Pantalla6_looker.jpg}) hasta llegar a las categorías más específicas (ver Figura~\ref{fig:Pantalla6_2_looker.jpg}), facilitando la identificación de los tipos de lugares con mayor representación.
+
+Los gráficos \textit{Wheelchair Accessibility} y \textit{Claim Business} ofrecen información sobre determinadas características de los establecimientos. El primero permite conocer la proporción de POIs que disponen de acceso adaptado para personas con movilidad reducida, mientras que el segundo muestra el porcentaje de lugares cuya ficha de Google ha sido reclamada y gestionada por su propietario, permitiendo obtener una visión general del grado de accesibilidad y de gestión de la presencia digital de los establecimientos.
+
+Por último, los gráficos \textit{Temporary Closure Status} y \textit{Permanent Closure Status} permiten analizar el estado de apertura de los POIs. De forma conjunta, ambas visualizaciones facilitan la identificación del porcentaje de establecimientos que permanecen abiertos y de aquellos que se encuentran temporal o permanentemente cerrados, proporcionando una visión del estado actual de la oferta turística registrada.
+
+\imagen{Pantalla6_looker.jpg}{Pantalla de datos generales y características de los POIs.}
+\imagen{Pantalla6_2_looker.jpg}{Pantalla de datos generales y características de los POIs.}
+
+\subsection{E.4.7 Review Analysis}
+La séptima pantalla, denominada \textit{Review Analysis}, está orientada al estudio de las reseñas publicadas por los usuarios, permitiendo analizar tanto su volumen como la distribución de las valoraciones a lo largo del tiempo. Para ello, incorpora filtros de municipios y de años, abarcando este último un periodo comprendido entre 2022 y 2026, lo que resulta especialmente útil para centrar el análisis en un intervalo temporal concreto.
+
+El gráfico \textit{Reviews by Category} muestra el volumen de reseñas acumuladas por cada categoría de POIs, permitiendo identificar qué tipos de lugares generan una mayor interacción por parte de los usuarios y comparar el nivel de actividad entre las distintas categorías.
+
+Los gráficos \textit{Ratings Distribution by Category} y \textit{Ratings Distribution} permiten analizar la distribución de las valoraciones otorgadas por los usuarios. Mientras el primero compara la proporción de valoraciones positivas, neutras y negativas entre las diferentes categorías, el segundo ofrece una visión global del conjunto de las reseñas, facilitando la evaluación del grado general de satisfacción de los visitantes y la detección de posibles diferencias entre categorías.
+
+Por último, \textit{Monthly Review Volume} representa la evolución del número de reseñas a lo largo del tiempo, permitiendo comparar la actividad registrada en cada mes y año. Esta visualización resulta especialmente útil para identificar patrones estacionales, analizar la evolución de la participación de los usuarios y detectar periodos de mayor o menor actividad.
+
+\imagen{Pantalla7_looker.jpg}{Pantalla de análisis temporal e histórico de reseñas.}
+
+\subsection{E.4.8 Review Demographics}
+La octava pantalla, nombrada \textit{Review Demographics}, permite analizar las características de los usuarios que publican reseñas y estudiar sus patrones de participación. Para ello, incorpora los filtros de municipios y de años, facilitando el análisis de un periodo temporal o de una zona geográfica concreta.
+
+Los gráficos \textit{Gender} y \textit{Average Rating Trend by Gender} permiten estudiar el comportamiento de las reseñas según el género de sus autores. Mientras que el primero muestra la distribución de las reseñas publicadas por hombres, mujeres y usuarios cuyo género no ha podido identificarse, el segundo analiza la evolución temporal de la valoración media otorgada por hombres y mujeres, permitiendo comparar si ambos grupos presentan tendencias o comportamientos diferentes a lo largo del tiempo.
+
+Por otro lado, los gráficos \textit{Language}, \textit{Reviews by Day} y \textit{Review Language Flow by Weekday} ofrecen una visión conjunta de los hábitos de publicación de las reseñas. El primero permite conocer los idiomas predominantes en los que los usuarios escriben sus opiniones, el segundo muestra cómo se distribuyen las publicaciones a lo largo de la semana y el tercero relaciona ambas variables, facilitando el análisis de los idiomas más utilizados en cada día y la identificación de posibles patrones de comportamiento según el momento de publicación.
+
+\imagen{Pantalla8_looker.jpg}{Pantalla de datos demográficos de las reseñas.}
+
+\subsection{E.4.9 Sentiment Analysis}
+
+Para finalizar, la novena pantalla, denominada \textit{Sentiment Analysis}, está orientada al análisis del sentimiento expresado por los usuarios en las reseñas, permitiendo estudiar tanto la percepción general de los POIs como su evolución a lo largo del tiempo. La pantalla incorpora filtros de municipios y de años, además de dos indicadores resumen con el número de reseñas analizadas y la valoración media obtenida.
+
+El gráfico \textit{Sentiment Analysis by Category} permite comparar la cantidad de reseñas positivas, neutras y negativas registradas en cada una de las categorías de POIs. Gracias a esta visualización, el usuario puede identificar qué tipos de recursos turísticos concentran una mayor proporción de opiniones favorables o desfavorables y detectar posibles diferencias en la percepción de los turistas.
+
+El gráfico \textit{Sentiment Score Distribution} ofrece una visión global de la distribución del sentimiento obtenido tras el análisis de las reseñas, permitiendo conocer la proporción de opiniones con sentimiento positivo y negativo para el conjunto de la información analizada.
+
+Por último, \textit{Monthly Review Volume by Sentiment} y \textit{Review Rating Evolution} permiten estudiar la evolución temporal de las opiniones publicadas por los usuarios. Mientras que el primero muestra cómo varía el volumen de reseñas positivas, neutras y negativas a lo largo del tiempo, el segundo representa la evolución de la valoración media de las reseñas, facilitando la identificación de tendencias y posibles cambios en la percepción de los usuarios durante los diferentes periodos analizados.
+
+\imagen{Pantalla9_looker.jpg}{Pantalla de análisis de sentimiento de las opiniones.}
