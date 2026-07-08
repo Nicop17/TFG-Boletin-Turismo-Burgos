@@ -32,7 +32,7 @@ def run_scraper():
 
     # Obtener municipios y categorías desde BigQuery
     if filters['target_municipality'] == "": # Si no se especifica un municipio, se procesan todos
-    # Filtramos municipios que no han sido procesados hoy ni en extracción general ni en extracción de reseñas
+    # Filtramos solo municipios que o no se hayan extraído o su última extracción de POIs o de reseñas supere el margen límite establecido en configuración
         query_muni = f"""
             SELECT id_municipality, name, population, last_poi_update, last_review_extraction 
             FROM `{dataset_path}.{g_tables['municipalities']}`
